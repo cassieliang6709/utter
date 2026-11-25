@@ -335,7 +335,7 @@ func TestLivePolishBlocks(t *testing.T) {
 // note (luojiaxuan): TestLivePolishOff: nothing goes to the language model
 // before Stop with Clean up while you speak off (neither the live text nor
 // the speech model's own stretches), when a picture goes with the clean-up,
-// or when the language model runs on this Mac.
+// or when the language model runs on this Mac with LiveCleanLocal off.
 func TestLivePolishOff(t *testing.T) {
 	for _, c := range []struct {
 		name string
@@ -343,7 +343,10 @@ func TestLivePolishOff(t *testing.T) {
 	}{
 		{"switch off", func(r *run) { r.settings.Features.Transcribe.CleanAfterStop = true }},
 		{"window picture", func(r *run) { r.shot = func() []byte { return []byte("jpeg") } }},
-		{"model on this Mac", func(r *run) { r.svc.LLMInfo.ID = "ollama" }},
+		{"model on this Mac", func(r *run) {
+			r.svc.LLMInfo.ID = "ollama"
+			r.settings.Features.Transcribe.LiveCleanLocal = false
+		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			model := newLiveLLM()
