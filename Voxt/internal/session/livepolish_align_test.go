@@ -1,6 +1,13 @@
 package session
 
-import "testing"
+import (
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/sgl-project/sglang-omni/Voxt/internal/compose"
+	"github.com/sgl-project/sglang-omni/Voxt/internal/store"
+)
 
 // TestLivePolishAlign: the final text counts as the live text when only
 // punctuation, white space or case differ, with what the Final adds after
@@ -50,5 +57,32 @@ func TestLivePolishPunctuationOnly(t *testing.T) {
 	}
 	if n := len(model.requests()); n != 1 {
 		t.Errorf("%d requests, want only the one while recording", n)
+	}
+}
+
+// TestLivePolishLargeGlossary: a dictionary of more than
+// compose.GlossaryAllUpTo terms still cleans up while recording, and each
+// request lists the terms its own text mentions.
+func TestLivePolishLargeGlossary(t *testing.T) {
+	var terms []store.Term
+	for i := range compose.GlossaryAllUpTo + 5 {
+		terms = append(terms, store.Term{Term: fmt.Sprintf("Term%d", i), Enabled: true})
+	}
+	model := newLiveLLM()
+	r := newEarlyUnitRun(t, model, terms)
+	r.settings.Dictionary.Enabled, r.settings.Dictionary.Glossary = true, true
+	live := "Ask Term7 about it."
+	r.hearLive(live)
+	waitLive(t, r, live)
+	if _, err := liveCleanUp(r, live); err != nil {
+		t.Fatal(err)
+	}
+	reqs := model.requests()
+	if len(reqs) != 1 {
+		t.Fatalf("%d requests, want only the one while recording", len(reqs))
+	}
+	user := reqs[0].Messages[len(reqs[0].Messages)-1].Content
+	if !strings.Contains(user, "<glossary>\n- Term7\n</glossary>") || strings.Contains(user, "Term8") {
+		t.Errorf("user message %q, want the glossary of the terms it mentions", user)
 	}
 }

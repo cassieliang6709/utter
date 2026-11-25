@@ -145,20 +145,23 @@ func (r *run) endLive() {
 
 // note (luojiaxuan): newLivePolish starts the live clean-up of a Transcribe
 // that cleans up with a language model; nil when it does not run: the user
-// has it wait for Stop (settings.Transcribe.CleanAfterStop); the glossary
-// depends on the text (more than compose.GlossaryAllUpTo terms: only the
-// whole text picks its terms); a picture goes with the clean-up (each
+// has it wait for Stop (settings.Transcribe.CleanAfterStop); a picture goes with the clean-up (each
 // request would send it again, and the card would show it while the user
 // speaks); or the language model is served on this Mac, where its requests
 // would share the GPU with the speech model while the user speaks and
 // beside the Final after Stop, unless the user allows it
 // (settings.Transcribe.LiveCleanLocal).
+//
+// A dictionary of more than compose.GlossaryAllUpTo terms does not stop it:
+// its rule is the same in every request's system prompt, and each block's
+// request lists the terms its own text mentions, the ones a clean-up after
+// Stop would list for those sentences.
 func newLivePolish(r *run) *livePolish {
 	r.m.mu.Lock()
 	client, llmInfo, llmCtx := r.svc.LLM, r.svc.LLMInfo, r.llmCtx
 	r.m.mu.Unlock()
 	if r.req.Kind != store.KindTranscribe || r.settings.Features.Transcribe.CleanAfterStop || !r.transcribeCleanup() ||
-		client == nil || len(r.glossary()) > compose.GlossaryAllUpTo || r.shot != nil || len(r.req.Images) > 0 {
+		client == nil || r.shot != nil || len(r.req.Images) > 0 {
 		return nil
 	}
 	if !r.settings.Features.Transcribe.LiveCleanLocal && r.llmOnThisMac(llmInfo.ID) {
