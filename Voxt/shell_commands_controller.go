@@ -103,11 +103,13 @@ func (a *app) commands() []command {
 	add("logs-panel", view, i18n.T("Show or hide the logs panel"), "Show or hide the logs panel", "⇧⌘L", true, a.toggleLogsPanel)
 	add("shortcuts", view, i18n.T("Keyboard shortcuts"), "Keyboard shortcuts", "?", true, func() { a.sheetOpen = true })
 	add("helper-restart", view, i18n.T("Restart helper"), "Restart helper", "", true, a.restartHelper)
-	if a.upd != nil {
+	if a.upd != nil && !utterLockedUI {
 		add("check-updates", view, i18n.T("Check for Updates…"), "Check for Updates", "", true, a.checkForUpdates)
 	}
 	add("llm-debug", view, i18n.T("Language model debug"), "Language model debug prompts", "", true, func() { a.navigate(llmDebugPath) })
-	add("setup-guide", view, i18n.T("Open setup guide"), "Open setup guide onboarding", "", true, a.openOnboarding)
+	if !utterLockedUI {
+		add("setup-guide", view, i18n.T("Open setup guide"), "Open setup guide onboarding", "", true, a.openOnboarding)
+	}
 
 	look := i18n.T("Appearance")
 	for _, th := range []struct{ id, title, en string }{

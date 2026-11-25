@@ -59,7 +59,7 @@ func buildSettingsShortcutsViewState(translator *i18n.Translator, input settings
 		Preset:                 buildShortcutPresetPickerViewState(translator, input.Features, input.AccessibilityInstalled, false),
 	}
 	for _, feature := range append(append([]string{}, hotkey.Features...), hotkey.PasteLast, hotkey.CancelID, hotkey.Note) {
-		if input.Features.IsHidden(feature) || (feature == hotkey.Note && input.Features.IsHidden(settings.HideNotes)) {
+		if utterFeatureHidden(input.Features, feature) || (feature == hotkey.Note && utterFeatureHidden(input.Features, settings.HideNotes)) {
 			continue
 		}
 		bindings := hotkey.HotkeysOf(input.Features, feature)

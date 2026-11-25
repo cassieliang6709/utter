@@ -89,7 +89,7 @@ func buildNavViewState(translator *i18n.Translator, input navViewStateInput) nav
 		state.NoticesLabel = translator.N(input.Notices, "%d notification", "%d notifications", input.Notices)
 	}
 	for i, path := range shortcutPages {
-		if input.Features.IsHidden(path[1:]) {
+		if utterFeatureHidden(input.Features, path) {
 			continue
 		}
 		state.ShortcutPages = append(state.ShortcutPages, navShortcutViewState{Path: path, Num: i + 1})
@@ -100,7 +100,7 @@ func buildNavViewState(translator *i18n.Translator, input navViewStateInput) nav
 			group.Title = groupTitleFor(translator, g.id)
 		}
 		for _, p := range g.pages {
-			if input.Features.IsHidden(p.path[1:]) {
+			if utterFeatureHidden(input.Features, p.path) {
 				continue
 			}
 			group.Pages = append(group.Pages, navPageViewState{
@@ -111,7 +111,9 @@ func buildNavViewState(translator *i18n.Translator, input navViewStateInput) nav
 				Selected: !input.SettingsOpen && input.Current == p.path,
 			})
 		}
-		state.Groups = append(state.Groups, group)
+		if len(group.Pages) > 0 {
+			state.Groups = append(state.Groups, group)
+		}
 	}
 	return state
 }

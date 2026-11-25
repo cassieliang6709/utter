@@ -139,7 +139,7 @@ func buildHomeTodayViewState(translator *i18n.Translator, stats dayStats, featur
 		Characters: groupDigits(stats.chars), CharactersLabel: translator.N(stats.chars, "character", "characters"),
 	}
 	for _, kind := range store.Kinds {
-		if features.IsHidden(string(kind)) {
+		if utterFeatureHidden(features, string(kind)) {
 			continue
 		}
 		state.Kinds = append(state.Kinds, homeKindCountViewState{

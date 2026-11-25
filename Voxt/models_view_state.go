@@ -204,7 +204,7 @@ func buildModelCards(translator *i18n.Translator, input modelsViewStateInput, ki
 	var families []string
 	byFamily := map[string][]models.Model{}
 	for _, model := range input.Catalog {
-		if model.Kind != kind || !modelShown(model, input.Status[model.ID]) || modelHiddenFor(translator, input, model.ID) {
+		if model.Kind != kind || !utterSpeechModelAllowed(model.ID) || !modelShown(model, input.Status[model.ID]) || modelHiddenFor(translator, input, model.ID) {
 			continue
 		}
 		if byFamily[model.Family] == nil {
@@ -244,6 +244,9 @@ func buildSingleModelCard(translator *i18n.Translator, input modelsViewStateInpu
 }
 
 func buildHiddenModelCards(translator *i18n.Translator, input modelsViewStateInput) []modelCardViewState {
+	if utterLockedUI {
+		return nil
+	}
 	var cards []modelCardViewState
 	for _, model := range input.Catalog {
 		if model.Kind == models.ASR && modelShown(model, input.Status[model.ID]) && modelHiddenFor(translator, input, model.ID) {
@@ -265,7 +268,7 @@ func dictationListed(input modelsViewStateInput) bool {
 }
 
 func buildDictationCard(translator *i18n.Translator, input modelsViewStateInput, hidden bool) *modelCardViewState {
-	if !dictationListed(input) || modelHiddenFor(translator, input, dictation.ModelID) != hidden {
+	if utterLockedUI || !dictationListed(input) || modelHiddenFor(translator, input, dictation.ModelID) != hidden {
 		return nil
 	}
 	usedBy := modelsUsedBy(translator, input.Settings, input.InstalledASR, input.InstalledLLM, local.ASR, dictation.ModelID)

@@ -66,20 +66,22 @@ func generalSettings(c *ui.Context, state settingsGeneralViewState, actions sett
 		}
 	})
 
-	sectionTitle(c, i18n.T("Features"))
-	settingRow(c, "features", i18n.T("Shown features"), i18n.T("Unchecked features leave the sidebar, and their shortcuts stop. Their settings are kept."), func() {
-		ui.Row(c).Gap(px(t, sp3)).Wrap().AlignItems(ui.Center).Children(func() {
-			for _, feature := range state.Features {
-				shown := feature.Shown
-				if ui.Checkbox(c.Key("feature-"+feature.ID), &shown, feature.Title).Label(i18n.T("Show %s", feature.Title)).Changed() {
-					actions.setFeatureShown(feature.ID, shown)
+	if !utterLockedUI {
+		sectionTitle(c, i18n.T("Features"))
+		settingRow(c, "features", i18n.T("Shown features"), i18n.T("Unchecked features leave the sidebar, and their shortcuts stop. Their settings are kept."), func() {
+			ui.Row(c).Gap(px(t, sp3)).Wrap().AlignItems(ui.Center).Children(func() {
+				for _, feature := range state.Features {
+					shown := feature.Shown
+					if ui.Checkbox(c.Key("feature-"+feature.ID), &shown, feature.Title).Label(i18n.T("Show %s", feature.Title)).Changed() {
+						actions.setFeatureShown(feature.ID, shown)
+					}
 				}
-			}
+			})
 		})
-	})
 
-	sectionTitle(c, i18n.T("Getting started"))
-	onboardingRow(c, actions) // onboarding_view.go
+		sectionTitle(c, i18n.T("Getting started"))
+		onboardingRow(c, actions) // onboarding_view.go
+	}
 }
 
 func settingsLanguageLabels(options []settingsLanguageViewState) []string {

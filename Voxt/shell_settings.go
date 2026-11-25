@@ -264,7 +264,9 @@ func settingsSection(c *ui.Context, r *ui.Route, state settingsDialogViewState, 
 			storageSettings(c, *state.Storage, actions, local.Storage)
 		case "about":
 			aboutDetails(c, *state.About)
-			updateSettingsSection(c, *state.Updates, actions, local.Updates)
+			if !utterLockedUI {
+				updateSettingsSection(c, *state.Updates, actions, local.Updates)
+			}
 			aboutDiagnostics(c, *state.About, actions)
 		}
 		return
@@ -276,11 +278,13 @@ func settingsSection(c *ui.Context, r *ui.Route, state settingsDialogViewState, 
 // over Settings (shell_controller.go).
 func modelsSettingsSection(c *ui.Context, state *settingsModelsViewState, actions settingsDialogActions, local *modelsLocalUI) {
 	onboardingBackBar(c, state.BackBar, actions)
-	ui.Row(c).Justify(ui.End).Children(func() {
-		if ghostButton(c.Key("models-network"), i18n.T("Network…")).Tooltip(i18n.T("How model downloads reach Hugging Face")).Clicked() {
-			actions.openNetwork()
-		}
-	})
+	if !utterLockedUI {
+		ui.Row(c).Justify(ui.End).Children(func() {
+			if ghostButton(c.Key("models-network"), i18n.T("Network…")).Tooltip(i18n.T("How model downloads reach Hugging Face")).Clicked() {
+				actions.openNetwork()
+			}
+		})
+	}
 	models := &state.Models
 	sectionTitle(c, i18n.T("On this Mac"))
 	caption(c, i18n.T("Free, and your audio stays on this Mac."))
@@ -288,12 +292,16 @@ func modelsSettingsSection(c *ui.Context, state *settingsModelsViewState, action
 	if models.Dictation != nil {
 		modelCard(c, *models.Dictation, actions)
 	}
-	remoteProviderCards(c, &state.RemoteCards, actions, settingsSectionWidth(c))
+	if !utterLockedUI {
+		remoteProviderCards(c, &state.RemoteCards, actions, settingsSectionWidth(c))
+	}
 	speechContextSection(c, models.SpeechContext, actions, &local.speechContext)
-	if models.ShowLLM {
+	if models.ShowLLM && !utterLockedUI {
 		sectionTitleTip(c, i18n.T("Language models no longer used"), i18n.T("Voxt no longer uses these. Delete them to free up space."))
 		modelCards(c, models.LLM, actions)
 	}
-	hiddenModelCards(c, models.Hidden, &local.modelHiddenOpen, actions)
-	modelsAdvanced(c, &models.Advanced, actions, local)
+	if !utterLockedUI {
+		hiddenModelCards(c, models.Hidden, &local.modelHiddenOpen, actions)
+		modelsAdvanced(c, &models.Advanced, actions, local)
+	}
 }

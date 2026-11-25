@@ -8,6 +8,11 @@ import (
 )
 
 func featureModels(c *ui.Context, feature string, state *featureModelsViewState, actions featureActions, local *featureUI) {
+	if utterLockedUI && feature == "transcribe" {
+		sectionTitle(c, i18n.T("Models"))
+		caption(c, i18n.T("Locked to Qwen3-ASR 0.6B 4bit with Silero voice detection. The language model is the one set up in Settings."))
+		return
+	}
 	prefix := state.Prefix
 	sectionTitleTip(c, i18n.T("Models"), i18n.T("Automatic uses the recommended speech model and your first language model. With no speech model installed, it uses a remote speech service you set up."))
 	for _, item := range state.Before {
@@ -77,7 +82,7 @@ func trEnhance(c *ui.Context, state *featureCleanupViewState, actions featureAct
 			}
 		})
 	settingRow(c, "tr-while-speaking", i18n.T("Clean up while you speak"),
-		i18n.T("Sends each finished sentence to the language model as you speak, so the text is ready sooner after you stop, at the cost of more requests. Not with a language model on this Mac. When off, nothing is sent until you stop."), func() {
+		i18n.T("Sends each finished sentence to the language model as you speak, so the text is ready sooner after you stop, at the cost of more requests. When off, nothing is sent until you stop."), func() {
 			// note (luojiaxuan): editable with the clean-up off too: an app's group can turn the clean-up on for it.
 			if ui.Switch(c.Key("tr-while-speaking-switch"), &whileSpeaking).Label(i18n.T("Clean up while you speak")).Changed() {
 				actions.setFeatureCleanWhileSpeaking(whileSpeaking)
