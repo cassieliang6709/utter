@@ -26,8 +26,8 @@ import (
 	"github.com/sgl-project/sglang-omni/Voxt/internal/store"
 )
 
-// selfBundleID is VoxtNew's bundle id (mygo.json).
-const selfBundleID = "dev.hehehai.voxtnew"
+// selfBundleID is this build's bundle id (mygo.json).
+const selfBundleID = "dev.cassie.utter"
 
 // urlTimeout is how long a session waits for a browser's address.
 const urlTimeout = 800 * time.Millisecond
