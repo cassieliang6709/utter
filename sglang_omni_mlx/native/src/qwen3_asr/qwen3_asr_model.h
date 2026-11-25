@@ -57,6 +57,9 @@ private:
   AudioEncoderConfig audio_;
   omni_common::Checkpoint checkpoint_;
   omni_common::Qwen3Decoder decoder_;
+  // Precomputed half-precision sinusoidal positions for up to one full conv
+  // chunk, avoiding recomputation and fp32->fp16 cast on every EncodeAudio.
+  mlx::core::array sinusoidal_positions_;
 };
 
 } // namespace qwen3_asr

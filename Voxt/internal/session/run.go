@@ -123,6 +123,7 @@ type run struct {
 	// goroutine's until it returns.
 	liveOnce sync.Once
 	live     *livePolish
+	livePtr  atomic.Pointer[livePolish]
 	liveOff  bool
 }
 

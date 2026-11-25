@@ -10,7 +10,9 @@ Utter 是 Voxt（sglang-omni 仓库的 `Voxt/`）的个人构建。它让本机 
 2. 最终文字只差标点时照样复用：松开后的最终文字常比实时文字多一个或少一个「，」。以前从这个标点起已润色的部分全部作废。现在只差标点、空格或大小写时，按实时文字核对。历史记录里的识别原文仍是最终文字。
 3. 词典超过 30 条也边说边润色：每块请求只带这块文字提到的词条，和松开后整段润色给这几句的词条相同。
 4. `asr.fast` 提前静音锁段（`PiecesAfter=20s`, `PieceMin=10s`, `PieceSeconds=15s`, `PieceMax=25s`）：上游默认 60s 才切段，导致 20–40s 录音松键后全量重算 ASR；调低阈值后，录音中途在 Silero VAD 停顿处锁定已完成片段并通过 `startFinalAt` 预填尾段，缩短长录音松键等待。
-5. 改名：app 叫 Utter，bundle id 是 `dev.cassie.utter`，可以和官方 Voxt 并存。数据目录仍是 `~/Library/Application Support/VoxtNew`，词典、历史和设置共用。界面里的文字仍写 Voxt。
+5. 松键瞬间本机 LLM 主动让出 Metal GPU（`pauseLocalLiveForFinal`）：实测 MLX ASR 与 GGML 本地润色并发抢占 Metal 队列会让 ASR 慢 39%–57%、LLM 慢 62%–100%。松键进入 `Recognizing` 时，若 LLM 在本机运行，立刻暂停新本地润色并取消未采纳的在途本地请求，让 ASR Final 独占 Metal GPU，同时保留已完成润色块供 `finish()` 复用（远端 API LLM 不受影响，通过 `go test -race` 零竞态验证）。
+6. `sglang_omni_mlx/native` C++ 热路径优化：在 `Qwen3ASR` 构造期预计算并缓存 `float16` `SinusoidalPositions`，在 `Qwen3ASRTranscriber::PromptIds` 构造期预编码固定模板段并直接插入 `audio_pad_id_`，消除每次实时刷新重复计算位置编码与拼接数百个 `<|audio_pad|>` 字符串再分词的开销。
+7. 改名：app 叫 Utter，bundle id 是 `dev.cassie.utter`，可以和官方 Voxt 并存。数据目录仍是 `~/Library/Application Support/VoxtNew`，词典、历史和设置共用。界面里的文字仍写 Voxt。
 
 ## 实测
 

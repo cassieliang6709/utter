@@ -48,8 +48,9 @@ type livePolish struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	thinkOffUnder int
-	reclean       int // note (luojiaxuan): sentences cleaned again with the text left at Stop
-	llm           LLM // note (luojiaxuan): the session's language model when the live clean-up started: the fallback swap after Stop does not reach the worker
+	reclean       int  // note (luojiaxuan): sentences cleaned again with the text left at Stop
+	local         bool // language model served on this Mac: shares Metal GPU with local ASR
+	llm           LLM  // note (luojiaxuan): the session's language model when the live clean-up started: the fallback swap after Stop does not reach the worker
 
 	mu      sync.Mutex
 	cond    *sync.Cond
@@ -60,6 +61,7 @@ type livePolish struct {
 	epoch   int          // note (luojiaxuan): bumped when blocks change: a clean-up of an older epoch has other text before it
 	done    []liveResult // note (luojiaxuan): the clean-ups of the open block: each of a stretch that starts the text after blocks
 	flight  *liveFlight  // note (luojiaxuan): the request under way, nil when none
+	paused  bool         // Stop pressed with local LLM: yield GPU to ASR Final without discarding done blocks
 	closed  bool         // note (luojiaxuan): the final text came, or the live clean-up gave up: no more requests
 
 	// Test gates make completion/adoption interleavings deterministic; nil in production.
@@ -123,7 +125,11 @@ func (r *run) hearLive(text string) {
 	if r.liveOff {
 		return
 	}
-	r.liveOnce.Do(func() { r.live = newLivePolish(r) })
+	r.liveOnce.Do(func() {
+		lp := newLivePolish(r)
+		r.live = lp
+		r.livePtr.Store(lp)
+	})
 	if r.live == nil {
 		return
 	}
@@ -132,6 +138,14 @@ func (r *run) hearLive(text string) {
 		text = dict.Replace(text, r.terms)
 	}
 	r.live.add(text)
+}
+
+// pauseLocalLiveForFinal yields the local Apple Silicon GPU to ASR Final after
+// Stop while preserving already-completed live clean-up blocks for reuse.
+func (r *run) pauseLocalLiveForFinal() {
+	if lp := r.livePtr.Load(); lp != nil {
+		lp.pauseForFinal()
+	}
 }
 
 // note (luojiaxuan): endLive ends the live clean-up while the recording goes on (the
@@ -164,7 +178,8 @@ func newLivePolish(r *run) *livePolish {
 		client == nil || r.shot != nil || len(r.req.Images) > 0 {
 		return nil
 	}
-	if !r.settings.Features.Transcribe.LiveCleanLocal && r.llmOnThisMac(llmInfo.ID) {
+	localLLM := r.llmOnThisMac(llmInfo.ID)
+	if !r.settings.Features.Transcribe.LiveCleanLocal && localLLM {
 		r.logf("info", "no clean-up while recording: the language model %s runs on this Mac", llmInfo.ID)
 		return nil
 	}
@@ -176,7 +191,7 @@ func newLivePolish(r *run) *livePolish {
 		}
 	}
 	ctx, cancel := context.WithCancel(llmCtx)
-	lp := &livePolish{r: r, ctx: ctx, cancel: cancel, thinkOffUnder: thinkOffUnder, llm: client,
+	lp := &livePolish{r: r, ctx: ctx, cancel: cancel, thinkOffUnder: thinkOffUnder, local: localLLM, llm: client,
 		reclean: max(0, r.settings.Features.Transcribe.RecleanSentences)}
 	lp.cond = sync.NewCond(&lp.mu)
 	go func() {
@@ -210,6 +225,27 @@ func (r *run) llmOnThisMac(id string) bool {
 	}
 	u, err := url.Parse(preset.BaseURL)
 	return err == nil && core.IsLoopback(u.Hostname())
+}
+
+// pauseForFinal yields the local GPU while the speech model runs Final after
+// Stop: no new local clean-up request starts, and any un-adopted local request
+// in flight is cancelled so it does not contend with ASR Final on Metal.
+// Already-completed blocks and done clean-ups remain intact for finish().
+// Remote language models are unaffected.
+func (lp *livePolish) pauseForFinal() {
+	if !lp.local {
+		return
+	}
+	lp.mu.Lock()
+	if !lp.closed && !lp.paused {
+		lp.paused = true
+		if f := lp.flight; f != nil && !f.adopted {
+			f.detached = true
+			f.cancel()
+		}
+		lp.cond.Broadcast()
+	}
+	lp.mu.Unlock()
 }
 
 // note (luojiaxuan): stop gives the live clean-up up: Stop cleans the whole text.
@@ -301,8 +337,10 @@ func (lp *livePolish) work() {
 		lp.mu.Lock()
 		job, ok := liveResult{}, false
 		for !lp.closed {
-			if job, ok = lp.next(); ok {
-				break
+			if !lp.paused {
+				if job, ok = lp.next(); ok {
+					break
+				}
 			}
 			lp.cond.Wait()
 		}

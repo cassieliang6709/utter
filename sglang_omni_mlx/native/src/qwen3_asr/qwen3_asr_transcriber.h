@@ -197,6 +197,11 @@ private:
   int end_of_text_id_;
   int im_end_id_;
   std::vector<int> asr_text_ids_;
+  // Pre-encoded constant prompt framing tokens so PromptIds inserts
+  // audio_pad_id_ directly without building & tokenizing hundreds of pad tags.
+  std::vector<int> prompt_sys_start_ids_;
+  std::vector<int> prompt_user_audio_start_ids_;
+  std::vector<int> prompt_audio_end_assistant_ids_;
   std::optional<omni_common::DFlashDraft> draft_;
   omni_common::DraftPolicy draft_policy_;
 };

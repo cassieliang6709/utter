@@ -250,6 +250,7 @@ func (r *run) listen() (string, bool) {
 			r.stopRecording()
 		case <-stopCh:
 			stopCh, heard, endPause = nil, nil, nil
+			r.pauseLocalLiveForFinal()
 			at := r.stoppedAt()
 			if at.IsZero() {
 				at = r.recordStopAt(r.now())
@@ -268,6 +269,7 @@ func (r *run) listen() (string, bool) {
 			capCancel()
 		case c := <-capDone:
 			recordDone, captured = true, c
+			r.pauseLocalLiveForFinal()
 			r.recordStopAt(r.now())
 			close(r.recorded)
 		}

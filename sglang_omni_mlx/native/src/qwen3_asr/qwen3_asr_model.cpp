@@ -61,7 +61,8 @@ Qwen3ASR::Qwen3ASR(const nlohmann::json &config,
                   config),
       decoder_(checkpoint_, "model",
                Qwen3DecoderConfig::FromJson(
-                   config.at("thinker_config").at("text_config"))) {
+                   config.at("thinker_config").at("text_config"))),
+      sinusoidal_positions_(mx::array(0.0f)) {
   const nlohmann::json &audio = config.at("thinker_config").at("audio_config");
   audio_ = {audio.at("num_mel_bins").get<int>(),
             audio.at("encoder_layers").get<int>(),
@@ -69,6 +70,12 @@ Qwen3ASR::Qwen3ASR(const nlohmann::json &config,
             audio.at("d_model").get<int>(),
             audio.at("n_window").get<int>(),
             audio.at("n_window_infer").get<int>()};
+  const int max_conv_frames = ConvOutputFrames(audio_.n_window * 2) + 4;
+  sinusoidal_positions_ = mx::expand_dims(
+      mx::astype(SinusoidalPositions(max_conv_frames, audio_.d_model),
+                 mx::float16),
+      0);
+  mx::eval(sinusoidal_positions_);
 }
 
 mx::array Qwen3ASR::Conv2d(const mx::array &x,
@@ -169,10 +176,16 @@ mx::array Qwen3ASR::EncodeAudio(const mx::array &mel, AudioLayout layout,
                                        : mx::concatenate(conv_blocks, 0),
                                    "audio_tower.conv_out");
   const int conv_frames = x.shape(1);
-  x = mx::add(x, mx::expand_dims(mx::astype(SinusoidalPositions(conv_frames,
-                                                                audio_.d_model),
-                                            x.dtype()),
-                                 0));
+  const mx::array pos =
+      (conv_frames <= sinusoidal_positions_.shape(1) &&
+       x.dtype() == sinusoidal_positions_.dtype())
+          ? mx::slice(sinusoidal_positions_, {0, 0, 0},
+                      {1, conv_frames, audio_.d_model})
+          : mx::expand_dims(
+                mx::astype(SinusoidalPositions(conv_frames, audio_.d_model),
+                           x.dtype()),
+                0);
+  x = mx::add(x, pos);
 
   std::vector<int> credited_lengths;
   for (const int length : chunk_lengths) {

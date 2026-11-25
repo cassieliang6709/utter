@@ -560,3 +560,83 @@ func TestLivePolishStopsBetweenParts(t *testing.T) {
 		}
 	}
 }
+
+// TestLivePolishLocalYieldsGPUOnStop verifies that when the language model runs
+// on this Mac (loopback), pauseLocalLiveForFinal cancels an in-flight clean-up
+// and pauses new launches while ASR Final owns Metal GPU, yet preserves already
+// completed clean-up blocks for reuse at Stop. Remote language models are
+// unaffected.
+func TestLivePolishLocalYieldsGPUOnStop(t *testing.T) {
+	t.Run("local yields GPU and preserves completed blocks", func(t *testing.T) {
+		model := newLiveLLM()
+		stuck := make(chan struct{})
+		t.Cleanup(func() { close(stuck) })
+		model.mu.Lock()
+		model.stuck["First sentence. Second sentence."] = stuck
+		model.mu.Unlock()
+
+		r := newEarlyUnitRun(t, model, nil)
+		r.settings.Features.Transcribe.LiveCleanLocal = true
+		r.settings.Features.Transcribe.RecleanSentences = 0
+		r.settings.Providers.LLM = []settings.Provider{{ID: "custom", Endpoint: "http://127.0.0.1:8090/v1"}}
+		r.svc.LLMInfo.ID = "custom"
+
+		r.hearLive("First sentence.")
+		waitLive(t, r, "First sentence.")
+		r.hearLive("First sentence. Second sentence.")
+		var flight *liveFlight
+		waitLiveFor(t, r, "in-flight second sentence", func(lp *livePolish) bool {
+			flight = lp.flight
+			return flight != nil && flight.src == "First sentence. Second sentence."
+		})
+
+		// Simulate Stop firing while ASR Final begins on Metal GPU.
+		r.pauseLocalLiveForFinal()
+		select {
+		case <-flight.ctx.Done():
+		case <-time.After(5 * time.Second):
+			t.Fatal("in-flight local LLM request was not cancelled on Stop")
+		}
+
+		// Late partials while paused must not launch a new local LLM request.
+		beforeReqs := len(model.requests())
+		r.hearLive("First sentence. Second sentence. Third sentence.")
+		time.Sleep(50 * time.Millisecond)
+		if got := len(model.requests()); got != beforeReqs {
+			t.Fatalf("launched %d local LLM requests while paused for ASR Final", got-beforeReqs)
+		}
+
+		// Previously completed block ("First sentence.") is still reused at finish.
+		got, err := liveCleanUp(r, "First sentence. Second sentence.")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "[First sentence.] [Second sentence.]"; got != want {
+			t.Fatalf("result %q, want %q", got, want)
+		}
+	})
+
+	t.Run("remote LLM is unaffected by pauseForFinal", func(t *testing.T) {
+		model := newLiveLLM()
+		stuck := make(chan struct{})
+		t.Cleanup(func() { close(stuck) })
+		model.mu.Lock()
+		model.stuck["Hello there."] = stuck
+		model.mu.Unlock()
+
+		r := newEarlyUnitRun(t, model, nil)
+		r.settings.Providers.LLM = []settings.Provider{{ID: "openai", Endpoint: "https://api.openai.com/v1"}}
+		r.svc.LLMInfo.ID = "openai"
+
+		r.hearLive("Hello there.")
+		var flight *liveFlight
+		waitLiveFor(t, r, "in-flight remote request", func(lp *livePolish) bool {
+			flight = lp.flight
+			return flight != nil
+		})
+		r.pauseLocalLiveForFinal()
+		if flight.ctx.Err() != nil {
+			t.Fatal("remote LLM request was cancelled by pauseLocalLiveForFinal")
+		}
+	})
+}

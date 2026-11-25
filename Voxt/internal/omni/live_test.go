@@ -416,6 +416,8 @@ func TestLiveFinalFailsWhenTheDrainTimesOut(t *testing.T) {
 	defer func() { loopback = old }()
 	f := newFake(t, omnitest.Opts{Text: "p{n}", LiveStall: true, FailFrom: 1, Delay: 5 * time.Second}, nil)
 	a := f.asr(t, ASRFast)
+	// This test exercises Final drain timeout on a 25s recording, not piece cuts.
+	a.spec.ASR.PiecesAfter = 0
 	st, err := a.Open(context.Background(), asr.StreamRequest{SampleRate: sampleRate})
 	if err != nil {
 		t.Fatal(err)

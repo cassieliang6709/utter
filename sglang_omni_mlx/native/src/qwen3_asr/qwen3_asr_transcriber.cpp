@@ -128,6 +128,11 @@ Qwen3ASRTranscriber::Qwen3ASRTranscriber(
       end_of_text_id_(tokenizer_.AddedTokenId("<|endoftext|>")),
       im_end_id_(tokenizer_.AddedTokenId("<|im_end|>")),
       asr_text_ids_(tokenizer_.Encode(kAsrTextMarker)),
+      prompt_sys_start_ids_(tokenizer_.Encode("<|im_start|>system\n")),
+      prompt_user_audio_start_ids_(
+          tokenizer_.Encode("<|im_end|>\n<|im_start|>user\n<|audio_start|>")),
+      prompt_audio_end_assistant_ids_(
+          tokenizer_.Encode("<|audio_end|><|im_end|>\n<|im_start|>assistant\n")),
       draft_policy_(draft_policy) {
   if (!draft_directory.empty()) {
     draft_.emplace(draft_directory, draft_quantization_bits,
@@ -139,19 +144,34 @@ Qwen3ASRTranscriber::Qwen3ASRTranscriber(
 std::vector<int>
 Qwen3ASRTranscriber::PromptIds(int audio_token_count,
                                const TranscriptionOptions &options) const {
-  std::string prompt = "<|im_start|>system\n" +
-                       Strip(options.context.value_or("")) +
-                       "<|im_end|>\n<|im_start|>user\n<|audio_start|>";
-  for (int i = 0; i < audio_token_count; ++i)
-    prompt += kAudioPad;
-  prompt += "<|audio_end|><|im_end|>\n<|im_start|>assistant\n";
+  const std::string context = Strip(options.context.value_or(""));
   const std::optional<std::string> language =
       NormalizeLanguage(options.language.value_or(""));
-  if (language.has_value()) {
-    prompt += "language " + *language + kAsrTextMarker;
-  } else {
+  std::vector<int> ids;
+  ids.reserve(prompt_sys_start_ids_.size() +
+              prompt_user_audio_start_ids_.size() +
+              prompt_audio_end_assistant_ids_.size() +
+              static_cast<size_t>(std::max(0, audio_token_count)) +
+              options.prefix_token_ids.size() + 32);
+  ids.insert(ids.end(), prompt_sys_start_ids_.begin(),
+             prompt_sys_start_ids_.end());
+  if (!context.empty()) {
+    const std::vector<int> ctx_ids = tokenizer_.Encode(context);
+    ids.insert(ids.end(), ctx_ids.begin(), ctx_ids.end());
   }
-  std::vector<int> ids = tokenizer_.Encode(prompt);
+  ids.insert(ids.end(), prompt_user_audio_start_ids_.begin(),
+             prompt_user_audio_start_ids_.end());
+  if (audio_token_count > 0) {
+    ids.insert(ids.end(), static_cast<size_t>(audio_token_count),
+               audio_pad_id_);
+  }
+  ids.insert(ids.end(), prompt_audio_end_assistant_ids_.begin(),
+             prompt_audio_end_assistant_ids_.end());
+  if (language.has_value()) {
+    const std::vector<int> lang_ids =
+        tokenizer_.Encode("language " + *language + kAsrTextMarker);
+    ids.insert(ids.end(), lang_ids.begin(), lang_ids.end());
+  }
   ids.insert(ids.end(), options.prefix_token_ids.begin(),
              options.prefix_token_ids.end());
   return ids;
