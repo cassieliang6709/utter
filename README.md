@@ -1,3 +1,6 @@
+> **This is Utter**, a personal build of Voxt (`Voxt/`) that cleans up dictation while you speak with a language model on this Mac.
+> What it changes, measurements and build steps: [UTTER.md](UTTER.md). Branch `cassie`; upstream is [sgl-project/sglang-omni](https://github.com/sgl-project/sglang-omni). The rest of this README is upstream's.
+
 <div align="center">
 <img src="https://raw.githubusercontent.com/sgl-project/sglang-omni/main/docs/_static/image/sgl-omni-logo.svg" alt="logo" width="400"></img>
 

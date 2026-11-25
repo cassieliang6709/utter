@@ -1,55 +1,64 @@
 # Utter
 
-Utter 是 Voxt（sglang-omni 仓库的 `Voxt/`）的个人构建。它让本机 LLM 也能边说边润色，松开按键后等得更短。
+Utter 是 Voxt（sglang-omni 仓库的 `Voxt/`）的个人构建。语音识别、润色都在这台 Mac 上跑，松开按键后约 0.5 秒出字。
 
 ## 和上游 Voxt 的区别
 
 分支 `cassie` 在上游 `main` 上加了这些改动：
 
 1. 本机 LLM 也边说边润色：上游在 LLM 地址是 127.0.0.1 时关掉这个功能。这里加了设置项 `features.transcribe.liveCleanLocal`，默认开。上游 PR：sgl-project/sglang-omni#4643（那边默认关）。
-2. 最终文字只差标点时照样复用：松开后的最终文字常比实时文字多一个或少一个「，」。以前从这个标点起已润色的部分全部作废。现在只差标点、空格或大小写时，按实时文字核对。历史记录里的识别原文仍是最终文字。
+2. 最终文字只差标点时照样复用：松开后的最终文字常比实时文字多一个或少一个「，」，以前从这个标点起已润色的部分全部作废。现在只差标点、空格或大小写时，按实时文字核对。历史记录里的识别原文仍是最终文字。
 3. 词典超过 30 条也边说边润色：每块请求只带这块文字提到的词条，和松开后整段润色给这几句的词条相同。
-4. `asr.fast` 提前静音锁段（`PiecesAfter=20s`, `PieceMin=10s`, `PieceSeconds=15s`, `PieceMax=25s`）：上游默认 60s 才切段，导致 20–40s 录音松键后全量重算 ASR；调低阈值后，录音中途在 Silero VAD 停顿处锁定已完成片段并通过 `startFinalAt` 预填尾段，缩短长录音松键等待。
-5. 松键瞬间本机 LLM 主动让出 Metal GPU（`pauseLocalLiveForFinal`）：实测 MLX ASR 与 GGML 本地润色并发抢占 Metal 队列会让 ASR 慢 39%–57%、LLM 慢 62%–100%。松键进入 `Recognizing` 时，若 LLM 在本机运行，立刻暂停新本地润色并取消未采纳的在途本地请求，让 ASR Final 独占 Metal GPU，同时保留已完成润色块供 `finish()` 复用（远端 API LLM 不受影响，通过 `go test -race` 零竞态验证）。
-6. `sglang_omni_mlx/native` C++ 热路径优化：在 `Qwen3ASR` 构造期预计算并缓存 `float16` `SinusoidalPositions`，在 `Qwen3ASRTranscriber::PromptIds` 构造期预编码固定模板段并直接插入 `audio_pad_id_`，消除每次实时刷新重复计算位置编码与拼接数百个 `<|audio_pad|>` 字符串再分词的开销。
-7. 改名：app 叫 Utter，bundle id 是 `dev.cassie.utter`，可以和官方 Voxt 并存。数据目录仍是 `~/Library/Application Support/VoxtNew`，词典、历史和设置共用。界面里的文字仍写 Voxt。
+4. 长录音更早切段：`asr.fast` 从 20 秒起（上游 60 秒）在停顿处定下已识别的片段，片段边录边润色，松开后只剩最后一段。
+5. 松开按键时本机 LLM 让出 GPU：润色模型在本机时，松开后暂停新的润色请求、取消没被采纳的在途请求，让语音识别的最终一遍先跑。已经润色好的块照常复用。
+6. 精简界面（编译标签 `utter`）：侧边栏只留首页、历史、转录、词典、日志。翻译、改写、笔记、会议、按应用增强、快捷短语连同快捷键一起隐藏。语音模型只列 Qwen3-ASR 0.6B 4bit。更新检查和引导隐藏。设置里的「语言模型」保留，本机润色服务的地址在那里改。
+7. 改名：app 叫 Utter，bundle id 是 `dev.cassie.utter`，可以和官方 Voxt 并存。数据目录仍是 `~/Library/Application Support/VoxtNew`，词典、历史和设置共用。界面文字仍写 Voxt。
+
+源码里还有一处没进 app 的改动：`sglang_omni_mlx/native` 里 Qwen3-ASR 的 C++ 缓存（位置编码、提示词 token）。app 打包的 omni 运行时从官方 Voxt 2.1.3 复制，和官方逐字节相同，这部分 C++ 没有编译进去，也没有测过。
 
 ## 实测
 
-机器：M1 Pro 16 GB。语音识别：Qwen3-ASR 0.6B 4bit。润色：llama.cpp，Qwen3-4B Q4_0，127.0.0.1:8090。
+机器：M1 Pro 16 GB。语音识别：Qwen3-ASR 0.6B 4bit。方法：5 段 7–39 秒的中文录音由 helper 回放代替麦克风，音频结束 0.5 秒后松开；每段开关关、开交替各 3 次。计时从松开到文字插入，表里是中位数。测量时词典没有发给 LLM。
 
-方法：5 段 7–39 秒的中文录音，由 helper 回放代替麦克风，音频结束 0.5 秒后松开。每段改前、改后交替各 3 次。计时从松开到文字插入。
-
-| 录音 | 时长 | 原生默认（4B `on=false`） | Utter + 4B（`on=true`） | Utter + 0.6B `Q8_0`（`on=true`） | 相对原生降幅 |
+| 录音 | 时长 | 4B，关 | 4B，开 | 0.6B，关 | 0.6B，开 |
 |---|---|---|---|---|---|
-| A | 7.4 s | 0.80 s | 0.28 s | 0.31 s | -61.3% |
-| B | 12.8 s | 1.01 s | 1.44 s | 0.48 s | -52.5% |
-| C | 16.5 s | 1.31 s | 0.45 s | 1.24 s（两次：1.96 / 0.52 s） | -5.3% |
-| D | 23.9 s | 1.60 s | 0.57 s | 0.64 s | -60.0% |
-| E | 38.7 s | 2.77 s（最高 4.66 s） | 2.78 s（含 8.7 s 尖刺） | 1.34 s（零尖刺） | -51.6% |
-| 全部中位数 | | 1.31 s | 0.57 s | **0.55 s** | **-58.0%** |
-| 全部均值 | | 1.64 s | 1.59 s | **0.80 s** | **-51.0%** |
+| A | 7.4 s | 0.80 s | 0.28 s | 0.49 s | 0.32 s |
+| B | 12.8 s | 1.01 s | 1.44 s | 0.53 s | 0.56 s |
+| C | 16.5 s | 1.31 s | 0.45 s | 0.70 s | 0.54 s |
+| D | 23.9 s | 1.60 s | 0.57 s | 0.24 s | 0.26 s |
+| E | 38.7 s | 2.77 s | 2.78 s | 0.55 s | 0.62 s |
+| 全部 | | 1.31 s | 0.57 s | 0.53 s | 0.54 s |
 
-1. 全部复用：4B 改后 15 次里有 9 次松键后不再请求 LLM。只加第 1 项改动时是 5 次。
-2. 4B 的短板与 0.6B 补齐：4B 下 B 因最终文字把「嗯」识别成「呃」重跑（1.44 s），E 因后半段改字只复用前 43 字且出现 8.7 s 长尾；换自训 610 MB `Qwen3-0.6B Q8_0 + ngram-simple` 后，B 压至 0.48 s（3.0×），E 压至 1.34 s（零长尾），全量中位 0.55 s、均值 0.80 s，相对 SGLang-Omni 原生默认方案延迟均降超一半。
-3. 代价：边录音边润色和语音识别共用 GPU，最终文字慢约 40 ms，第一段字幕晚约 60 ms，字幕更新间隔不变（1.01 s）。
+- 4B：llama.cpp，Qwen3-4B-Instruct Q4_0，代码到第 3 项为止。
+- 0.6B：`voxt_polish_cpp`，自训 Qwen3-0.6B Q8_0（见 `voxt-polish/`），代码到第 6 项。
 
-测量时词典没有发给 LLM（glossary 关闭），以便和前几轮对比。
+1. 4B 上边说边润色有用：中位数 1.31 → 0.57 秒，15 次里 9 次松开后不再请求 LLM。B 的「嗯」被最终文字识别成「呃」，字不同，所以重新润色。
+2. 0.6B 上开不开差不多：润色一段只要零点几秒，没剩多少可以提前做。从 4B 换到 0.6B 才是这一步的主要收益（关着时 1.31 → 0.53 秒）。
+3. D、E 超过 20 秒，走第 4 项的切段润色，开关关着也会边录边润色，所以 0.6B 下 D 关着只要 0.24 秒。
+4. 代价：边录边润色和语音识别共用 GPU。4B 下最终识别慢约 40 ms，第一段字幕晚约 60 ms，字幕更新间隔不变（1.01 秒）。0.6B 下第一段字幕和更新间隔都不变（0.35 秒、1.02 秒）。E 开着时有一次 1.01 秒。
 
 ## 编译和安装
 
-需要 Go 1.27.4 和 Xcode。命令在 `Voxt/` 下执行：
+需要 Go 1.27.4 和 Xcode，在 `Voxt/` 下执行：
 
 ```sh
 scripts/build-helper.sh
-cp -R /Applications/Voxt.app/Contents/Resources/omni resources/darwin-arm64/omni
-go tool mygo build -skip-dmg
-ditto build/darwin-arm64/Utter.app /Applications/Utter.app
+scripts/build-utter.sh
 ```
 
-1. omni 运行时直接从已装的官方 Voxt 复制，省掉约 1 GB 的编译。
-2. app 是 ad hoc 签名。第一次打开要在系统设置里给 Utter 麦克风和辅助功能权限。
+1. `build-utter.sh` 从 `/Applications/Voxt.app` 复制 omni 运行时，删掉精简版用不到的 6 个语音服务端（Whisper、Parakeet、SenseVoice、Cohere、Nemotron、MOSS，共约 8 MB），用 `-tags utter` 编译，装到 `/Applications/Utter.app`。
+2. app 是 ad hoc 签名，每次重编签名都会变。重编后快捷键没反应时，在系统设置里把 Utter 的辅助功能权限关掉再打开。
 3. 官方 Voxt 和 Utter 用同一套快捷键，同一时间只开一个。
+
+## 测试
+
+```sh
+scripts/check.sh
+CGO_ENABLED=0 go test ./...
+CGO_ENABLED=0 go test -tags utter -run TestUtterProfile .
+```
+
+不带标签时全部测试检查上游界面。带 `-tags utter` 时只跑 `TestUtterProfile*`：其余界面测试断言的是被隐藏的页面，在精简版里本来就会失败。
 
 ## 同步上游
 
@@ -59,4 +68,4 @@ git switch cassie
 git rebase upstream/main
 ```
 
-rebase 后跑 `scripts/check.sh` 和 `CGO_ENABLED=0 go test ./internal/session/ ./internal/settings/`。
+rebase 后跑上面的测试。
