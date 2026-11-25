@@ -9,7 +9,8 @@ Utter 是 Voxt（sglang-omni 仓库的 `Voxt/`）的个人构建。它让本机 
 1. 本机 LLM 也边说边润色：上游在 LLM 地址是 127.0.0.1 时关掉这个功能。这里加了设置项 `features.transcribe.liveCleanLocal`，默认开。上游 PR：sgl-project/sglang-omni#4643（那边默认关）。
 2. 最终文字只差标点时照样复用：松开后的最终文字常比实时文字多一个或少一个「，」。以前从这个标点起已润色的部分全部作废。现在只差标点、空格或大小写时，按实时文字核对。历史记录里的识别原文仍是最终文字。
 3. 词典超过 30 条也边说边润色：每块请求只带这块文字提到的词条，和松开后整段润色给这几句的词条相同。
-4. 改名：app 叫 Utter，bundle id 是 `dev.cassie.utter`，可以和官方 Voxt 并存。数据目录仍是 `~/Library/Application Support/VoxtNew`，词典、历史和设置共用。界面里的文字仍写 Voxt。
+4. `asr.fast` 提前静音锁段（`PiecesAfter=20s`, `PieceMin=10s`, `PieceSeconds=15s`, `PieceMax=25s`）：上游默认 60s 才切段，导致 20–40s 录音松键后全量重算 ASR；调低阈值后，录音中途在 Silero VAD 停顿处锁定已完成片段并通过 `startFinalAt` 预填尾段，缩短长录音松键等待。
+5. 改名：app 叫 Utter，bundle id 是 `dev.cassie.utter`，可以和官方 Voxt 并存。数据目录仍是 `~/Library/Application Support/VoxtNew`，词典、历史和设置共用。界面里的文字仍写 Voxt。
 
 ## 实测
 

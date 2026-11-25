@@ -169,10 +169,15 @@ func qwenTuning() *ASRTuning {
 }
 
 // fastTuning is qwenTuning with the dictionary's 30 most recently changed
-// terms at most.
+// terms at most, and earlier VAD-paused piece finalization (PiecesAfter=20s)
+// so 20–40s local dictations lock completed stretches before Stop.
 func fastTuning() *ASRTuning {
 	t := qwenTuning()
 	t.ContextTerms = 30
+	t.PiecesAfter = 20 * time.Second
+	t.PieceMin = 10 * time.Second
+	t.PieceSeconds = 15 * time.Second
+	t.PieceMax = 25 * time.Second
 	return t
 }
 
