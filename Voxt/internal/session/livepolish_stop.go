@@ -276,3 +276,83 @@ func laid(results []liveResult, text string) (parts []compose.Part, answers []st
 	}
 	return parts, answers, rest
 }
+
+// align is text as the live clean-up matches it: the Final often adds,
+// drops or changes a comma of the live text, which would discard every
+// clean-up after it. When the final text repeats the newest live text but
+// for punctuation, white space and case, align is the live text; when it
+// says more after it, the live text up to its last sentence end where the
+// final text has punctuation too, then the final text from after that
+// punctuation. Else text. Clean-ups end at sentence ends, so that is all
+// they need. Only the matching uses it: the recognised text that is kept,
+// and inserted when the clean-up fails, stays text.
+func (lp *livePolish) align(text string) string {
+	lp.mu.Lock()
+	live := lp.text
+	lp.mu.Unlock()
+	if live == "" || live == text {
+		return text
+	}
+	ends := compose.SentenceEnds(live)
+	cut := ""         // the live text up to the last usable sentence end
+	from := len(text) // where the final text goes on after it
+	i, j := 0, 0      // bytes of live and text matched so far
+	for {
+		if i = skipMarks(live, i); i == len(live) {
+			break
+		}
+		if j = skipMarks(text, j); j == len(text) {
+			return text
+		}
+		a, na := utf8.DecodeRuneInString(live[i:])
+		b, nb := utf8.DecodeRuneInString(text[j:])
+		if unicode.ToLower(a) != unicode.ToLower(b) {
+			break
+		}
+		i, j = i+na, j+nb
+		li, tj := skipMarks(live, i), skipPunct(text, j)
+		if tj == j {
+			continue
+		}
+		for _, e := range ends {
+			if e > i && e <= li {
+				cut, from = live[:e], tj
+			}
+		}
+	}
+	if i == len(live) && strings.TrimFunc(text[j:], func(r rune) bool { return unicode.IsPunct(r) || unicode.IsSpace(r) }) == "" {
+		if r, _ := utf8.DecodeLastRuneInString(live); unicode.IsPunct(r) || unicode.IsSpace(r) {
+			return live
+		}
+		return live + text[j:] // the Final's marks after the live text's last word
+	}
+	if cut == "" {
+		return text
+	}
+	return cut + text[from:]
+}
+
+// skipPunct is the byte of s from i on that is not punctuation.
+func skipPunct(s string, i int) int {
+	for i < len(s) {
+		r, n := utf8.DecodeRuneInString(s[i:])
+		if !unicode.IsPunct(r) {
+			return i
+		}
+		i += n
+	}
+	return i
+}
+
+// skipMarks is the byte of s from i on that is neither punctuation nor
+// white space.
+func skipMarks(s string, i int) int {
+	for i < len(s) {
+		r, n := utf8.DecodeRuneInString(s[i:])
+		if !unicode.IsPunct(r) && !unicode.IsSpace(r) {
+			return i
+		}
+		i += n
+	}
+	return i
+}

@@ -273,14 +273,18 @@ func (r *run) cleanUpFirstContext(text string, request cleanupRequest) cleanupOu
 		var redo string
 		if r.live != nil {
 			livePath = true
-			parts, answers, redo, tail, flight = r.live.finish(text)
+			matched := r.live.align(text)
+			if matched != text {
+				r.logf("info", "the final text differs from the live text only in punctuation, white space or case: the live clean-up matches the live text")
+			}
+			parts, answers, redo, tail, flight = r.live.finish(matched)
 			completedAt = r.now()
 			if flight != nil {
-				if result, adopted := r.live.adopt(text, flight, request); adopted {
+				if result, adopted := r.live.adopt(matched, flight, request); adopted {
 					r.live.mu.Lock()
 					blocks := slices.Clone(r.live.blocks)
 					r.live.mu.Unlock()
-					parts, answers, tail = laid(append(blocks, result), text)
+					parts, answers, tail = laid(append(blocks, result), matched)
 					redo = ""
 					completedAt = r.now()
 				}
