@@ -73,6 +73,8 @@ type livePolishTestHooks struct {
 	beforeAdoptDraftPublish func()
 	beforeFlightCommit      func()
 	afterFinishAdopted      func()
+	// pausedIdle gets a value each time the worker waits while paused.
+	pausedIdle chan struct{}
 }
 
 func (lp *livePolish) runBeforeAdoptDraftPublish() {
@@ -340,6 +342,11 @@ func (lp *livePolish) work() {
 			if !lp.paused {
 				if job, ok = lp.next(); ok {
 					break
+				}
+			} else if lp.testHooks != nil && lp.testHooks.pausedIdle != nil {
+				select {
+				case lp.testHooks.pausedIdle <- struct{}{}:
+				default:
 				}
 			}
 			lp.cond.Wait()

@@ -590,6 +590,19 @@ func TestLivePolishLocalYieldsGPUOnStop(t *testing.T) {
 			return flight != nil && flight.src == "First sentence. Second sentence."
 		})
 
+		idle := make(chan struct{}, 1)
+		r.live.mu.Lock()
+		r.live.testHooks = &livePolishTestHooks{pausedIdle: idle}
+		r.live.mu.Unlock()
+		waitIdle := func(what string) {
+			t.Helper()
+			select {
+			case <-idle:
+			case <-time.After(5 * time.Second):
+				t.Fatalf("the worker did not wait while paused %s", what)
+			}
+		}
+
 		// Simulate Stop firing while ASR Final begins on Metal GPU.
 		r.pauseLocalLiveForFinal()
 		select {
@@ -598,12 +611,15 @@ func TestLivePolishLocalYieldsGPUOnStop(t *testing.T) {
 			t.Fatal("in-flight local LLM request was not cancelled on Stop")
 		}
 
-		// Late partials while paused must not launch a new local LLM request.
-		beforeReqs := len(model.requests())
+		// Late partials while paused must not launch a new local LLM request:
+		// the worker looks at the new text and waits again, sending nothing.
+		waitIdle("after Stop")
 		r.hearLive("First sentence. Second sentence. Third sentence.")
-		time.Sleep(50 * time.Millisecond)
-		if got := len(model.requests()); got != beforeReqs {
-			t.Fatalf("launched %d local LLM requests while paused for ASR Final", got-beforeReqs)
+		waitIdle("after a late partial")
+		for _, req := range model.requests() {
+			if m := req.Messages[len(req.Messages)-1].Content; strings.Contains(m, "Third sentence.") {
+				t.Fatalf("a request was sent while paused for ASR Final: %q", m)
+			}
 		}
 
 		// Previously completed block ("First sentence.") is still reused at finish.
@@ -613,6 +629,11 @@ func TestLivePolishLocalYieldsGPUOnStop(t *testing.T) {
 		}
 		if want := "[First sentence.] [Second sentence.]"; got != want {
 			t.Fatalf("result %q, want %q", got, want)
+		}
+		for _, req := range model.requests() {
+			if m := req.Messages[len(req.Messages)-1].Content; strings.Contains(m, "Third sentence.") {
+				t.Fatalf("a request was sent while paused for ASR Final: %q", m)
+			}
 		}
 	})
 
