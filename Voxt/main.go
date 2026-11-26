@@ -127,12 +127,18 @@ func main() {
 	// A release without an update feed (2.0.x) checks GitHub's releases
 	// (updates_github.go); a development build has no updater: no Check
 	// for Updates…, and About says so.
+	// The Utter build (-tags utter) has no updater either: upstream's
+	// releases are Voxt, which would replace it.
 	v := mygo.App.Version()
 	switch updates.BuildBackend(mygo.Updater.HasFeed(), checksReleases(mygo.IsDev(), v)) {
 	case updates.FeedUpdates:
-		a.upd = pluginUpdates{}
+		if !utterLockedUI {
+			a.upd = pluginUpdates{}
+		}
 	case updates.GitHubUpdates:
-		a.upd = newReleaseUpdates(a.settings, releasesURL, v, a.checkReleasesNow)
+		if !utterLockedUI {
+			a.upd = newReleaseUpdates(a.settings, releasesURL, v, a.checkReleasesNow)
+		}
 	}
 	a.bundleStale = h.stale
 	a.connectUpdates()                    // updates.go
