@@ -45,8 +45,23 @@ cp "$VOXT_DIR/../voxt-polish/prompts/sft_system.txt" "$POLISH_DST/system_prompt.
 echo "=== omni/bin contents kept for Utter ==="
 ls -lh "$OMNI_DST/bin"
 
+# Signing (optional): UTTER_SIGN_IDENTITY="Developer ID Application: …" signs
+# every binary with the hardened runtime and a timestamp; with
+# UTTER_NOTARY_PROFILE (xcrun notarytool store-credentials NAME) the app is
+# notarized and stapled too. mygo.json is changed for the build only.
+# UTTER_DMG=1 also makes the DMG. Without them: ad hoc, the app only.
+if [ -n "${UTTER_SIGN_IDENTITY:-}" ]; then
+  cp mygo.json mygo.json.orig
+  trap 'mv -f mygo.json.orig mygo.json' EXIT
+  jq --arg s "$UTTER_SIGN_IDENTITY" --arg p "${UTTER_NOTARY_PROFILE:-}" \
+    '.macos.signingIdentity = $s | if $p != "" then .macos.notarize = {keychainProfile: $p} else . end' \
+    mygo.json.orig > mygo.json
+fi
+DMG_FLAG="-skip-dmg"
+[ -n "${UTTER_DMG:-}" ] && DMG_FLAG=""
+
 echo "=== Building Utter.app with -tags=utter ==="
-GOFLAGS="-tags=utter" go tool mygo build -skip-dmg
+GOFLAGS="-tags=utter" go tool mygo build $DMG_FLAG
 
 echo "=== Installing to /Applications/Utter.app ==="
 osascript -e 'tell application "Utter" to quit' 2>/dev/null || true
