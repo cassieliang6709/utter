@@ -23,6 +23,7 @@ import (
 //	modelsState       models_controller.go  the Speech models page, the local models (internal/local)
 //	memoryState       models_memory.go  the loaded models' memory (the Speech models page)
 //	omniState         models_omni.go  the speech models' runtime (internal/omni)
+//	polish            models_polish.go the Utter build's own clean-up model
 //	remoteState       remote_link.go  the remote language models, the Language models page
 //	sessionState      session_link.go  sessions, shortcuts, the answer card
 //	overlayState      overlay.go      the recording overlay
@@ -69,6 +70,7 @@ type app struct {
 	modelsState
 	memoryState
 	omniState
+	polish *polishRun    // models_polish.go: nil unless the Utter build runs its model
 	llmDbg llmDebugState // llm_debug.go
 	remoteState
 	sessionState
@@ -163,6 +165,7 @@ func (a *app) quit() {
 		a.models.Close() // a download stops; what came is kept
 	}
 	a.closeOmni()   // models_omni.go: the speech models' servers
+	a.stopPolish()  // models_polish.go: the Utter build's clean-up model
 	a.closeFamily() // family.go: the runtime file goes
 	a.closeShell()
 }

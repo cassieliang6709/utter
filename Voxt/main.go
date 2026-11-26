@@ -144,6 +144,7 @@ func main() {
 	a.connectUpdates()                    // updates.go
 	a.keepReleaseCard(mygo.App.Version()) // updates_github.go
 	a.startFamily()                       // family.go: the manifest, the other ActNow apps, the first start's migration
+	a.startPolish()                       // models_polish.go: the Utter build's clean-up model
 	// Out of the Dock from launch: an app that starts in the Dock and
 	// turns accessory once launched may keep its Dock icon (#3918).
 	a.applyDock() // tray.go

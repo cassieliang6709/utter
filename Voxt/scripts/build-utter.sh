@@ -29,6 +29,19 @@ for bin in "${UNUSED_SERVERS[@]}"; do
   rm -f "$OMNI_DST/bin/$bin"
 done
 
+# The bundled clean-up engine (models_polish.go): voxt_polish_cpp built
+# self-contained by voxt-polish's cpp/build-static.sh, and the prompt the
+# model was trained with.
+POLISH_ENGINE="${POLISH_ENGINE:-$HOME/Developer/voxt-polish/cpp/build-static/voxt_polish_cpp}"
+if [ ! -x "$POLISH_ENGINE" ]; then
+  echo "no clean-up engine at $POLISH_ENGINE: run voxt-polish/cpp/build-static.sh, or set POLISH_ENGINE" >&2
+  exit 1
+fi
+POLISH_DST="$VOXT_DIR/resources/darwin-arm64/polish"
+mkdir -p "$POLISH_DST"
+cp "$POLISH_ENGINE" "$POLISH_DST/voxt_polish_cpp"
+cp "$VOXT_DIR/../voxt-polish/prompts/sft_system.txt" "$POLISH_DST/system_prompt.txt"
+
 echo "=== omni/bin contents kept for Utter ==="
 ls -lh "$OMNI_DST/bin"
 
