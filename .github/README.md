@@ -56,13 +56,9 @@ Upstream Voxt already cleans up while you speak, but turns it off when the model
 
 Needs an Apple silicon Mac with macOS 15 or later.
 
-1. Download the `.dmg` from [Releases](https://github.com/cassieliang6709/utter/releases/latest), open it and drag **Utter** to **Applications**.
-2. The app is not notarized yet, so macOS blocks it on first launch. Allow it once:
-   ```sh
-   xattr -dr com.apple.quarantine /Applications/Utter.app
-   ```
-3. Open Utter. The setup guide asks for **Microphone** and **Accessibility** access and downloads the speech model (Qwen3-ASR 0.6B, about 0.7 GB). The clean-up model (610 MB) downloads by itself; a card at the bottom left shows its progress.
-4. Press **Right ⌥**, speak, press it again.
+1. Download the `.dmg` from [Releases](https://github.com/cassieliang6709/utter/releases/latest), open it and drag **Utter** to **Applications**. It is signed with a Developer ID and notarized by Apple, so it opens like any other app.
+2. Open Utter. The setup guide asks for **Microphone** and **Accessibility** access and downloads the speech model (Qwen3-ASR 0.6B, about 0.7 GB). The clean-up model (610 MB) downloads by itself; a card at the bottom left shows its progress.
+3. Press **Right ⌥**, speak, press it again.
 
 Already run a language model on your Mac? If one is set up in Settings → Language models, Utter uses it and downloads nothing.
 

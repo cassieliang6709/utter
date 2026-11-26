@@ -48,7 +48,7 @@ scripts/build-utter.sh
 ```
 
 1. `build-utter.sh` 把润色引擎和训练时的提示词放进 app（`Contents/Resources/polish`），从 `/Applications/Voxt.app` 复制 omni 运行时，删掉精简版用不到的 6 个语音服务端（Whisper、Parakeet、SenseVoice、Cohere、Nemotron、MOSS，共约 8 MB），用 `-tags utter` 编译，装到 `/Applications/Utter.app`。
-2. app 是 ad hoc 签名，每次重编签名都会变。重编后快捷键没反应时，在系统设置里把 Utter 的辅助功能权限关掉再打开。
+2. 默认是 ad hoc 签名，每次重编签名都会变，辅助功能权限要重新打开一次。发布版这样编：`UTTER_SIGN_IDENTITY="Developer ID Application: …" UTTER_NOTARY_PROFILE=<notarytool 配置名> UTTER_DMG=1 scripts/build-utter.sh`，签名、公证、打 DMG 一起做，签名身份固定后重编不再丢权限。
 3. 官方 Voxt 和 Utter 用同一套快捷键，同一时间只开一个。
 
 ## 测试

@@ -61,13 +61,9 @@ Utter 放开了本机限制；比对两段文字时忽略标点、空格和大�
 
 需要 Apple 芯片的 Mac，macOS 15 或更新。
 
-1. 从 [Releases](https://github.com/cassieliang6709/utter/releases/latest) 下载 `.dmg`，打开后把 **Utter** 拖进 **应用程序**。
-2. app 还没做公证，第一次打开会被 macOS 拦下。在终端放行一次：
-   ```sh
-   xattr -dr com.apple.quarantine /Applications/Utter.app
-   ```
-3. 打开 Utter。设置引导会请求**麦克风**和**辅助功能**权限，并下载语音模型（Qwen3-ASR 0.6B，约 0.7 GB）。润色模型（610 MB）会自己下载，左下角的卡片显示进度。
-4. 按 **右 ⌥**，说话，再按一次。
+1. 从 [Releases](https://github.com/cassieliang6709/utter/releases/latest) 下载 `.dmg`，打开后把 **Utter** 拖进 **应用程序**。app 用 Developer ID 签名并通过了 Apple 公证，双击就能打开。
+2. 打开 Utter。设置引导会请求**麦克风**和**辅助功能**权限，并下载语音模型（Qwen3-ASR 0.6B，约 0.7 GB）。润色模型（610 MB）会自己下载，左下角的卡片显示进度。
+3. 按 **右 ⌥**，说话，再按一次。
 
 如果你已经在本机跑了语言模型，并在「设置 → 语言模型」里配好了，Utter 会直接用它，不另外下载。
 
