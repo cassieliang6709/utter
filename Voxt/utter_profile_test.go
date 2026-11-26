@@ -76,3 +76,23 @@ func TestUtterProfileSettingsAndShortcutsStreamlined(t *testing.T) {
 		}
 	}
 }
+
+// TestUtterProfileOnboarding: the setup guide offers the locked speech
+// model and passes over Translate and Rewrite, both ways.
+func TestUtterProfileOnboarding(t *testing.T) {
+	a := &app{}
+	if got := a.obSpeech(); got != models.ASRFast {
+		t.Errorf("the guide offers %s, want %s", got, models.ASRFast)
+	}
+	a.ob.step = obTranscribe
+	if a.obGo(obTranslate); a.ob.step != obMore {
+		t.Errorf("Continue from Transcribe went to step %d, want More", a.ob.step)
+	}
+	if a.obGo(obRewrite); a.ob.step != obTranscribe {
+		t.Errorf("Back from More went to step %d, want Transcribe", a.ob.step)
+	}
+	titles := buildOnboardingViewState(i18n.NewTranslator("en"), onboardingViewStateInput{Open: true, Step: obTranscribe}).StepTitles
+	if titles[obTranslate] != "" || titles[obRewrite] != "" || titles[obTranscribe] == "" {
+		t.Errorf("breadcrumbs %q", titles)
+	}
+}

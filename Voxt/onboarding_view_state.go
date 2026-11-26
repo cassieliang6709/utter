@@ -329,6 +329,10 @@ func buildOnboardingViewState(translator *i18n.Translator, input onboardingViewS
 	for step := 0; step < obSteps; step++ {
 		state.Passed[step] = input.Passed[step]
 	}
+	if utterLockedUI {
+		// No Translate or Rewrite in the Utter build: their breadcrumbs go.
+		state.StepTitles[obTranslate], state.StepTitles[obRewrite] = "", ""
+	}
 	switch input.Step {
 	case obWelcome:
 		state.Title = translator.T("Welcome to Voxt")

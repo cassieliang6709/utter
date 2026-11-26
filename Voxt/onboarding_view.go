@@ -110,10 +110,15 @@ func obHeader(c *ui.Context, state onboardingViewState, actions onboardingAction
 	gap, arrow := obStepsSpacing(c, state)
 	ui.Row(c).Padding(px(t, sp3), px(t, sp3), px(t, sp3), px(t, obPadX)).Gap(px(t, sp2)).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).GapX(gap).GapY(px(t, 2)).AlignItems(ui.Center).Grow(1).MinWidth(0).Wrap().Children(func() {
+			shown := 0
 			for index, title := range state.StepTitles {
-				if index > 0 {
+				if title == "" {
+					continue // a step this build leaves out
+				}
+				if shown > 0 {
 					ui.Icon(c, icons.AltArrowRight.Linear).Size(arrow, arrow).TextColor(k.Text3)
 				}
+				shown++
 				var step ui.Element
 				if index < state.Step {
 					step = ghostBase(c.Key("ob-step-"+strconv.Itoa(index))).Border(0, ui.Color{}).

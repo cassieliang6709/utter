@@ -233,7 +233,17 @@ func (a *app) obGo(step int) {
 	if a.obBusy() {
 		return
 	}
-	a.ob.step = min(max(step, 0), obSteps-1)
+	step = min(max(step, 0), obSteps-1)
+	if utterLockedUI && (step == obTranslate || step == obRewrite) {
+		// The Utter build has no Translate or Rewrite: their steps are
+		// passed over in the direction of travel.
+		if step > a.ob.step {
+			step = obMore
+		} else {
+			step = obTranscribe
+		}
+	}
+	a.ob.step = step
 	a.ob.block, a.ob.hint = nil, ""
 	switch a.ob.step {
 	case obWelcome:
@@ -246,8 +256,14 @@ func (a *app) obGo(step int) {
 }
 
 // obSpeech is the pack's speech model, the same on every Mac: 1.7B (8bit)
-// runs well with 8 GB of memory too.
-func (a *app) obSpeech() string { return models.ASRAccurate }
+// runs well with 8 GB of memory too. The Utter build lists only Qwen3-ASR
+// 0.6B (4bit), the model its measurements and clean-up were made with.
+func (a *app) obSpeech() string {
+	if utterLockedUI {
+		return models.ASRFast
+	}
+	return models.ASRAccurate
+}
 
 // obPack is the recommended pack: what the guide downloads.
 func (a *app) obPack() []string { return []string{a.obSpeech(), models.VADSilero} }
