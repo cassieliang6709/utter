@@ -336,7 +336,7 @@ type polishLogWriter struct{ log func(level, msg string) }
 
 func (w polishLogWriter) Write(b []byte) (int, error) {
 	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
-		if line != "" {
+		if strings.Trim(line, ". ") != "" { // not llama.cpp's loading dots
 			w.log("debug", line)
 		}
 	}
