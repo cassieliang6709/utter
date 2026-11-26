@@ -42,11 +42,12 @@ Utter 是 Voxt（sglang-omni 仓库的 `Voxt/`）的个人构建。语音识别�
 需要 Go 1.27.4 和 Xcode，在 `Voxt/` 下执行：
 
 ```sh
+~/Developer/voxt-polish/cpp/build-static.sh   # 润色引擎，一个不依赖 Homebrew 的二进制
 scripts/build-helper.sh
 scripts/build-utter.sh
 ```
 
-1. `build-utter.sh` 从 `/Applications/Voxt.app` 复制 omni 运行时，删掉精简版用不到的 6 个语音服务端（Whisper、Parakeet、SenseVoice、Cohere、Nemotron、MOSS，共约 8 MB），用 `-tags utter` 编译，装到 `/Applications/Utter.app`。
+1. `build-utter.sh` 把润色引擎和训练时的提示词放进 app（`Contents/Resources/polish`），从 `/Applications/Voxt.app` 复制 omni 运行时，删掉精简版用不到的 6 个语音服务端（Whisper、Parakeet、SenseVoice、Cohere、Nemotron、MOSS，共约 8 MB），用 `-tags utter` 编译，装到 `/Applications/Utter.app`。
 2. app 是 ad hoc 签名，每次重编签名都会变。重编后快捷键没反应时，在系统设置里把 Utter 的辅助功能权限关掉再打开。
 3. 官方 Voxt 和 Utter 用同一套快捷键，同一时间只开一个。
 

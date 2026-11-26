@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="860" viewBox="0 0 1200 860" role="img" aria-labelledby="title desc">
+  <title id="title">From my dictation history to a typed sentence</title>
+  <desc id="desc">Six stages: my own dictations, fine-tuning Qwen3-0.6B, evaluation, quantization gate, a C++ engine, and the Utter app.</desc>
+  <rect width="1200" height="860" rx="28" fill="#F2EFE9"/>
+  <circle cx="72" cy="78" r="7" fill="#E5452B"/>
+  <text x="94" y="92" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="40" font-weight="700" fill="#1C1C1E">From my dictation history to a typed sentence</text>
+  <g id="stage-1" transform="translate(64 140)">
+    <rect width="520" height="206" rx="18" fill="#FBFAF7" stroke="#DDD8CE" stroke-width="2"/>
+    <text x="28" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="22" font-weight="700" fill="#E5452B">01</text>
+    <text x="72" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="700" fill="#1C1C1E">Data</text>
+    <text x="28" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">364 of my own dictations</text>
+    <text x="28" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">recognised text → the text I kept</text>
+    <text x="28" y="170" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">scrubbed; the latest 40 held out</text>
+  </g>
+  <path d="M588 243.0 h24" stroke="#8A867E" stroke-width="2"/><path d="M606 237.0 l7 6 l-7 6" fill="none" stroke="#8A867E" stroke-width="2"/>
+  <g id="stage-2" transform="translate(616 140)">
+    <rect width="520" height="206" rx="18" fill="#FBFAF7" stroke="#DDD8CE" stroke-width="2"/>
+    <text x="28" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="22" font-weight="700" fill="#E5452B">02</text>
+    <text x="72" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="700" fill="#1C1C1E">Fine-tune</text>
+    <text x="28" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">Qwen3-0.6B, full bf16, one RTX 4090</text>
+    <text x="28" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">+50 synthetic anchors (26 corrections)</text>
+    <text x="28" y="170" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">early stop on entity preservation</text>
+  </g>
+  <path d="M876.0 350 V360 H324.0 V372" fill="none" stroke="#C9C4BA" stroke-width="2"/><path d="M318.0 365 l6 7 l6 -7" fill="none" stroke="#C9C4BA" stroke-width="2"/>
+  <g id="stage-3" transform="translate(64 376)">
+    <rect width="520" height="206" rx="18" fill="#FBFAF7" stroke="#DDD8CE" stroke-width="2"/>
+    <text x="28" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="22" font-weight="700" fill="#E5452B">03</text>
+    <text x="72" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="700" fill="#1C1C1E">Evaluate</text>
+    <text x="28" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">similarity 0.073 → 0.836</text>
+    <text x="28" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">entities kept: 100% (59/59)</text>
+    <text x="28" y="170" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">unseen corrections: 1/10 → 7/10</text>
+  </g>
+  <path d="M588 479.0 h24" stroke="#8A867E" stroke-width="2"/><path d="M606 473.0 l7 6 l-7 6" fill="none" stroke="#8A867E" stroke-width="2"/>
+  <g id="stage-4" transform="translate(616 376)">
+    <rect width="520" height="206" rx="18" fill="#FBFAF7" stroke="#DDD8CE" stroke-width="2"/>
+    <text x="28" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="22" font-weight="700" fill="#E5452B">04</text>
+    <text x="72" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="700" fill="#1C1C1E">Quantize</text>
+    <text x="28" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">Q8_0 vs bf16: 0.998, passes</text>
+    <text x="28" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">Q4_0: 0.948, below the 0.95 gate</text>
+    <text x="28" y="170" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">one 610 MB file</text>
+  </g>
+  <path d="M876.0 586 V596 H324.0 V608" fill="none" stroke="#C9C4BA" stroke-width="2"/><path d="M318.0 601 l6 7 l6 -7" fill="none" stroke="#C9C4BA" stroke-width="2"/>
+  <g id="stage-5" transform="translate(64 612)">
+    <rect width="520" height="206" rx="18" fill="#FBFAF7" stroke="#DDD8CE" stroke-width="2"/>
+    <text x="28" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="22" font-weight="700" fill="#E5452B">05</text>
+    <text x="72" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="700" fill="#1C1C1E">Engine</text>
+    <text x="28" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">C++ server on llama.cpp, one 11 MB binary</text>
+    <text x="28" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">system prompt KV kept, prefix reused</text>
+    <text x="28" y="170" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#3A3A3C">speculative decoding: 0.43 → 0.19 s</text>
+  </g>
+  <path d="M588 715.0 h24" stroke="#8A867E" stroke-width="2"/><path d="M606 709.0 l7 6 l-7 6" fill="none" stroke="#8A867E" stroke-width="2"/>
+  <g id="stage-6" transform="translate(616 612)">
+    <rect width="520" height="206" rx="18" fill="#2B2D31" stroke="#2B2D31" stroke-width="2"/>
+    <text x="28" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="22" font-weight="700" fill="#E5452B">06</text>
+    <text x="72" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="28" font-weight="700" fill="#F2EFE9">Utter</text>
+    <text x="28" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#D9D5CC">cleans each sentence while you speak</text>
+    <text x="28" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#D9D5CC">reuses it when only punctuation changed</text>
+    <text x="28" y="170" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="21" fill="#D9D5CC">key release to text: 0.44 s</text>
+  </g>
+</svg>
