@@ -208,11 +208,13 @@ func rewriteBoxView(context *ui.Context, state rewriteBoxViewState, actions rewr
 			// The trailing text box stays visible while earlier inputs scroll.
 			boxTextEditor(context, -1, &local.text, state, actions, local)
 
-			// The voice line carries actual speech, not another hint.
+			// The voice line carries actual speech, not another hint: it wraps up
+			// to voiceLineMaxLines lines and keeps the newest words, so a long
+			// instruction can be followed while it is spoken.
 			if state.VoiceLine != "" {
 				ui.Row(context).Shrink(0).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Icon(context, icons.VoxtTranscribe.Bold).Size(14, 14).TextColor(ovText2).Shrink(0).Label(i18n.T("The spoken instruction"))
-					ui.Text(context, state.VoiceLine).FontSize(12).TextColor(ovText2).Grow(1).MinWidth(0).SingleLine().Ellipsis("…")
+					ui.Text(context, state.VoiceLine).FontSize(12).TextColor(ovText2).Grow(1).MinWidth(0).MaxLines(voiceLineMaxLines).Ellipsis("…")
 				})
 			}
 

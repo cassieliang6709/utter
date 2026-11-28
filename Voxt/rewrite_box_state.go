@@ -85,7 +85,7 @@ func (a *app) boxViewState() rewriteBoxViewState {
 	state := rewriteBoxViewState{
 		Sessions:  a.sessionChips(),
 		Selection: selection, Conversation: a.boxConversing(), SizeStep: a.prefs.Features.CardSize(string(store.KindRewrite)), SelectionBlock: newBoxTextSegment(selection, selectionSource, true), Text: box.text, TextSegments: slices.Clone(box.textSegments),
-		Thumbnails: thumbnails, ImageInfo: imageInfo, ManualImages: len(box.images), VoiceLine: a.boxVoiceLine(), EditorPlaceholder: i18n.T("Or type here"), Subtitle: a.boxSubtitle(selection), SubtitleError: box.err != "",
+		Thumbnails: thumbnails, ImageInfo: imageInfo, ManualImages: len(box.images), VoiceLine: voiceLineTail(a.boxVoiceLine()), EditorPlaceholder: i18n.T("Or type here"), Subtitle: a.boxSubtitle(selection), SubtitleError: box.err != "",
 		CanSend: resendReview || box.sending == "" && (box.session != "" && a.sess.ID == box.session && (a.sess.State == session.Recording || a.sess.State == session.Recognizing && a.sess.ImagePreviewKind == "window" && len(a.sess.ImagePreview) > 0) || box.session == "" && box.instruction != ""),
 		Limit:   box.limit, FocusText: box.focusText, ShowTip: box.showTip,
 		Recording: recording, EnterSends: !recording || a.prefs.Features.ReturnFinishes, Heard: !a.sess.HeardAt.IsZero(), Motion: a.overlayMotion(), Phase: a.overlayPhase(), Wave: a.overlayWave(),
@@ -338,4 +338,21 @@ func (a *app) boxSendNow() {
 		a.box.instruction, a.box.text, a.box.textSegments = typed, "", nil
 	}
 	a.boxSend()
+}
+
+// voiceLineMaxLines and voiceLineMaxRunes bound the card's voice line: about
+// six lines of Chinese at the card's width.
+const (
+	voiceLineMaxLines = 6
+	voiceLineMaxRunes = 300
+)
+
+// voiceLineTail is the end of a spoken instruction, at most voiceLineMaxRunes
+// runes after an ellipsis, so the line shows the words just said.
+func voiceLineTail(s string) string {
+	r := []rune(s)
+	if len(r) <= voiceLineMaxRunes {
+		return s
+	}
+	return "…" + string(r[len(r)-voiceLineMaxRunes:])
 }
