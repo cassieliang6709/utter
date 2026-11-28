@@ -21,14 +21,16 @@ func (s *live) finalPass(pcm []byte) {
 	}
 	start := time.Now()
 	language := s.language
+	finalBias := s.a.finalBias(s.bias)
 	var texts []string
 	done, busy := 0, time.Duration(0)
 	if pc := s.pc; pc != nil {
-		select {
-		case pc.wake <- struct{}{}:
-		default:
+		s.mu.Lock()
+		activePieceDone := pc.activePieceDone
+		s.mu.Unlock()
+		if activePieceDone != nil {
+			<-activePieceDone
 		}
-		<-pc.exited
 		s.mu.Lock()
 		done, texts, busy = pc.done, slices.Clone(pc.texts), pc.busy
 		if pc.language != "" {
@@ -38,32 +40,41 @@ func (s *live) finalPass(pcm []byte) {
 	}
 	text := ""
 	var err error
-	if tail := pcm[done:]; len(tail) > 0 {
+	if tail := pcm[done:]; len(tail) > 0 && (done == 0 || !s.silentTail(tail)) {
 		hint := language
 		var known prior
 		if s.a.spec.Kind == kindQwen3ASR {
 			// The server has prefilled the Final's audio, from the last piece
-			// on, and its dictionary (startFinalAt).
+			// on, and its dictionary (recognisePieces).
 			known.session = s.session
-			// Without a hint the model writes the language before the text,
-			// and the preview does not hold it.
-			if done == 0 && hint != "" {
-				s.mu.Lock()
-				known.text = s.asm.text()
-				s.mu.Unlock()
+			if done == 0 {
+				if hint != "" {
+					s.mu.Lock()
+					known.text = s.asm.text()
+					s.mu.Unlock()
+				} else if !s.req.LiveResult {
+					// note (chenye): an auto-language Final generates a language
+					// header. Let the server propose it with the preview text.
+					known.guessAutoLanguage = true
+				}
 			}
 		}
-		text, language, err = s.a.final(s.ctx, s.l, tail, hint, s.bias, known)
+		text, language, err = s.a.final(s.ctx, s.l, tail, hint, finalBias, known)
 		if err != nil && s.ctx.Err() == nil && !s.l.p.alive() {
 			// The server died under the recording (a crash, memory pressure): the audio is all here, so once more on a new one.
 			if l, aerr := s.a.rt.acquire(s.ctx, s.a.spec, s.a.dir, s.a.draft); aerr == nil {
 				s.a.rt.logf("warning", "%s: its server died during the session (%v): the Final runs again on a new one", s.a.spec.ID, err)
-				text, language, err = s.a.final(s.ctx, l, tail, hint, s.bias, known)
+				text, language, err = s.a.final(s.ctx, l, tail, hint, finalBias, known)
 				l.release()
 			}
 		}
 	}
 	took := time.Since(start)
+	if err != nil {
+		s.mu.Lock()
+		s.lateCandidates = false
+		s.mu.Unlock()
+	}
 	s.logFinal(pcm, done, len(texts), busy, took, err)
 	if err != nil {
 		if s.ctx.Err() != nil {
@@ -80,6 +91,21 @@ func (s *live) finalPass(pcm []byte) {
 	text = joinParts(append(texts, text))
 	res := asr.Result{Text: text, Lang: language, Duration: asr.Duration(pcm, sampleRate), Model: s.a.spec.ID, Latency: took}
 	s.end(asr.Event{Kind: asr.EventFinal, Text: text, Result: res})
+}
+
+// maxSilentTail is the longest tail after the pieces that is left out when it
+// holds no speech.
+const maxSilentTail = time.Second
+
+// silentTail says whether the tail the pieces left is short and without speech
+// (Silero's): the pieces hold the text, and a model with a dictionary in its
+// context reads the dictionary out of the silence.
+func (s *live) silentTail(tail []byte) bool {
+	if s.a.vad == nil || asr.Duration(tail, sampleRate) > maxSilentTail {
+		return false
+	}
+	segments, err := s.a.vad.Speech(s.ctx, tail, sampleRate)
+	return err == nil && len(segments) == 0
 }
 
 // slowFinal: a Final after Stop this long gets the Mac's memory in its

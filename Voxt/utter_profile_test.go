@@ -23,7 +23,7 @@ func TestUtterProfileSidebarStreamlined(t *testing.T) {
 			paths = append(paths, p.Path)
 		}
 	}
-	want := []string{"/home", "/history", "/transcribe", "/dictionary", "/logs", "/settings"}
+	want := []string{"/home", "/history", "/dictionary", "/logs", "/settings"} // Transcribe is under Settings since Voxt 2.1.4
 	if !slices.Equal(paths, want) {
 		t.Fatalf("sidebar paths = %v, want %v", paths, want)
 	}

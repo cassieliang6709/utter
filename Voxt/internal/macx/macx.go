@@ -32,7 +32,44 @@ func Activate(pid int, wait time.Duration, runOnMain func(func())) (bool, time.D
 // Frontmost is the app in front (NSWorkspace); zero off macOS.
 func Frontmost() App { return frontmost() }
 
+// MouseButtonDown reports whether a mouse button is held down
+// (NSEvent.pressedMouseButtons); false off macOS.
+func MouseButtonDown() bool { return mouseButtonDown() }
+
 // WindowNumber is the window server's number of the NSWindow at handle
 // (mygo.Window.NativeHandle), as screencapture -l takes it; 0 off macOS.
 // Main thread.
 func WindowNumber(handle uintptr) int { return windowNumber(handle) }
+
+// WindowFrame is a window's frame in screen coordinates, with the origin at
+// the primary display's top left.
+type WindowFrame struct {
+	X, Y, Width, Height int
+}
+
+// WindowServerFrame is where the window server has the NSWindow at handle
+// (mygo.Window.NativeHandle) now: AppKit's own frame trails it while the
+// user drags the window. False off macOS. Main thread.
+func WindowServerFrame(handle uintptr) (WindowFrame, bool) { return windowServerFrame(handle) }
+
+var (
+	focusedWindowFrontmost     = frontmost
+	focusedWindowAccessibility = accessibilityFocusedWindowFrame
+	focusedWindowServer        = windowServerFocusedWindowFrame
+)
+
+func focusedWindowFrame() (WindowFrame, bool) {
+	front := focusedWindowFrontmost()
+	if front.PID <= 0 {
+		return WindowFrame{}, false
+	}
+	if frame, ok := focusedWindowAccessibility(front.PID); ok {
+		return frame, true
+	}
+	return focusedWindowServer(front.PID)
+}
+
+// FocusedWindowFrame returns the front app's focused window's frame, using
+// the window server when Accessibility is unavailable. It reports false when
+// neither source exposes a suitable window.
+func FocusedWindowFrame() (WindowFrame, bool) { return focusedWindowFrame() }

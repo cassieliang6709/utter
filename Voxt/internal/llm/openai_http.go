@@ -21,7 +21,7 @@ var UserAgent = "Voxt"
 
 // send POSTs body (GETs when body is nil) and returns the response when
 // the status is 2xx, else an *Error from the body. The key goes in the
-// Authorization header only.
+// Authorization header only (x-api-key for the Messages API).
 func (o *OpenAI) send(ctx context.Context, url string, body any, model string, timeout time.Duration) (*http.Response, error) {
 	method, b := http.MethodGet, []byte(nil)
 	if body != nil {
@@ -60,7 +60,13 @@ func (o *OpenAI) send(ctx context.Context, url string, body any, model string, t
 				req.Header.Set("ChatGPT-Account-ID", cred.AccountID)
 			}
 		}
-		if token != "" {
+		switch {
+		case o.messagesAPI():
+			req.Header.Set("anthropic-version", anthropicVersion)
+			if token != "" {
+				req.Header.Set("x-api-key", token)
+			}
+		case token != "":
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
 		resp, err := o.client.Do(req)
@@ -79,6 +85,32 @@ func (o *OpenAI) send(ctx context.Context, url string, body any, model string, t
 		}
 		return nil, o.failed(resp, model)
 	}
+}
+
+// Connect opens a connection to the server, which the client keeps for
+// the next chat: a HEAD request for the root, without the key. Whatever
+// the server answers, the connection is open. Nothing is sent to a service
+// one signs in to, whose API is not a public one.
+func (o *OpenAI) Connect(ctx context.Context) error {
+	if o.preset.SignIn {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(ctx, ProbeTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, o.preset.BaseURL, nil)
+	if err != nil {
+		e := newErr(CodeConfig, "provider", o.preset.ID, "field", "baseURL")
+		e.Err = err
+		return e
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	client := *o.client // the same connections
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := client.Do(req)
+	if err != nil {
+		return o.scrub(ctxErr(ctx, o.preset.ID, err, ProbeTimeout))
+	}
+	return resp.Body.Close()
 }
 
 // Models lists the IDs of the models the server has (GET {root}/models,

@@ -15,7 +15,8 @@ import (
 // OpenAI is a remote language model over the OpenAI-compatible chat
 // completions API (POST {base}/chat/completions), Auralink's transport:
 // the services of presets.json and any server the user names. Preset.API
-// switches it to OpenAI's Responses API (responses.go).
+// switches it to OpenAI's Responses API (responses.go) or Anthropic's
+// Messages API (messages.go).
 type OpenAI struct {
 	preset Preset
 	key    string
@@ -142,8 +143,11 @@ func (o *OpenAI) body(req Request, model string, stream, streamUsage, extra bool
 		}
 	}
 	applyGeneration(b, p, model, stream)
-	if o.responsesAPI() {
+	switch {
+	case o.responsesAPI():
 		b = responsesBody(b, o.preset.Generation.ExtraBody)
+	case o.messagesAPI():
+		b = messagesBody(b, o.preset.Generation.ExtraBody, o.preset.Generation.PromptCache)
 	}
 	if o.preset.SignIn {
 		return bareBody(b)
@@ -196,13 +200,16 @@ func (o *OpenAI) chat(ctx context.Context, req Request) (Response, error) {
 	if o.preset.SignIn && !stream { // that service only streams
 		stream, req.OnDelta = true, func(string) {}
 	}
-	streamUsage, extra, sampling := true, len(o.preset.ExtraBody) > 0, true
+	streamUsage, extra, sampling, effort := true, len(o.preset.ExtraBody) > 0, true, true
 	url := o.preset.BaseURL + o.path()
 	build := func() map[string]any {
 		b := o.body(req, model, stream, streamUsage, extra)
 		if !sampling { // after applyGeneration: its values and Extra Body win over the request's
 			delete(b, "temperature")
 			delete(b, "top_p")
+		}
+		if !effort { // a server without the reasoning_effort field
+			delete(b, "reasoning_effort")
 		}
 		return b
 	}
@@ -225,6 +232,8 @@ relax:
 			streamUsage = false
 		case (sent["temperature"] != nil || sent["top_p"] != nil) && (strings.Contains(detail, "temperature") || strings.Contains(detail, "top_p")):
 			sampling = false
+		case effort && strings.Contains(detail, "reasoning_effort"):
+			effort = false
 		case extra && o.mentionsExtra(detail):
 			extra = false
 		case req.Images != nil && !req.ImagesRequired: // a model that takes no images
@@ -303,6 +312,10 @@ func (o *OpenAI) withImages(text string, jpegs [][]byte, beforeInstruction bool)
 		parts = append(parts, map[string]any{"type": textType, "text": before})
 	}
 	for _, jpeg := range jpegs {
+		if o.messagesAPI() {
+			parts = append(parts, messagesImage(jpeg))
+			continue
+		}
 		image := map[string]any{"type": imageType}
 		if o.responsesAPI() {
 			image["image_url"] = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(jpeg)
@@ -350,8 +363,11 @@ type oaResponse struct {
 }
 
 func (o *OpenAI) readOne(ctx context.Context, body io.Reader, timeout time.Duration) (Response, error) {
-	if o.responsesAPI() {
+	switch {
+	case o.responsesAPI():
 		return o.readResponse(ctx, body, timeout)
+	case o.messagesAPI():
+		return o.readMessage(ctx, body, timeout)
 	}
 	raw, err := io.ReadAll(io.LimitReader(body, maxBody))
 	if err != nil {
@@ -385,8 +401,11 @@ func (o *OpenAI) readOne(ctx context.Context, body io.Reader, timeout time.Durat
 }
 
 func (o *OpenAI) readStream(ctx context.Context, body io.Reader, onDelta func(string), timeout time.Duration) (Response, error) {
-	if o.responsesAPI() {
+	switch {
+	case o.responsesAPI():
 		return o.readResponseStream(ctx, body, onDelta, timeout)
+	case o.messagesAPI():
+		return o.readMessagesStream(ctx, body, onDelta, timeout)
 	}
 	var out Response
 	var text strings.Builder

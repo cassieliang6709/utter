@@ -28,9 +28,6 @@ var navGroups = []navGroup{
 		{"/history", "History", historyIcon},
 	}},
 	{"Features", []navPage{
-		{"/transcribe", "Transcribe", transcribeIcon},
-		{"/translate", "Translate", translateIcon},
-		{"/rewrite", "Rewrite", rewriteIcon},
 		{"/notes", "Notes", notesIcon},
 		{"/meetings", "Meetings", meetingIcon},
 		{"/app-enhancement", "App enhancement", appEnhancementIcon},
@@ -144,6 +141,9 @@ func pageTitleFor(translator *i18n.Translator, path string) string {
 // notifications and old settings may still name them.
 var movedPaths = map[string]string{
 	"/permissions":     "/settings/permissions", // a page of the sidebar until 10-2026
+	"/transcribe":      "/settings/transcribe",
+	"/translate":       "/settings/translate",
+	"/rewrite":         "/settings/rewrite",
 	"/models":          modelsPath,
 	"/models/network":  networkPath,
 	"/language-models": remotePath,

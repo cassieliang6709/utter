@@ -30,6 +30,10 @@ struct Qwen3DecoderConfig {
   bool traditional_rope = false;
   int hidden_size = 0;
   int vocab_size = 0;
+  // When set, each layer's norms output this dtype for the projections, so a
+  // float32 residual stream still multiplies in the weights' dtype (AuK's
+  // conditioner).
+  std::optional<mlx::core::Dtype> projection_dtype = std::nullopt;
 
   static Qwen3DecoderConfig FromJson(const nlohmann::json &text_config);
 };
@@ -75,12 +79,13 @@ public:
   mlx::core::array EmbedTokens(const mlx::core::array &ids) const;
   // Runs every layer over the embeddings, appending to the caches; returns
   // the last layer's hidden states. The hidden states entering each layer in
-  // capture_layers are appended to captured, in that order.
-  mlx::core::array
-  Forward(const mlx::core::array &embeddings,
-          std::vector<omni_common::KVCache> &caches,
-          const std::vector<int> &capture_layers = {},
-          std::vector<mlx::core::array> *captured = nullptr) const;
+  // capture_layers are appended to captured, in that order. A long input
+  // stops with GenerationCancelled between layers once cancel is set.
+  mlx::core::array Forward(const mlx::core::array &embeddings,
+                           std::vector<omni_common::KVCache> &caches,
+                           const std::vector<int> &capture_layers = {},
+                           std::vector<mlx::core::array> *captured = nullptr,
+                           const std::atomic<bool> *cancel = nullptr) const;
   // Appends every layer's keys and values of hidden_states [1, length,
   // hidden] to the caches, for later queries to attend to. The hidden states
   // are projected as given, without the layers' input norms.
@@ -116,6 +121,9 @@ public:
 
 private:
   std::string Name(const std::string &suffix) const;
+  // x through the RMS norm at norm_prefix, as the projections take it.
+  mlx::core::array ProjectionInput(const mlx::core::array &x,
+                                   const std::string &norm_prefix) const;
   mlx::core::array Project(const mlx::core::array &x,
                            const std::string &prefix) const;
   // Logits of normalized hidden states x.

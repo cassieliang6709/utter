@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-// The DFlash draft for a target on the Qwen3 decoder (Qwen3-ASR, MOSS-TD): a
-// short Qwen3 decoder whose context is the target's hidden states, proposing a
-// block of tokens per round.
+// The DFlash draft for a target on the Qwen3 decoder (Qwen3-ASR, MOSS-TD,
+// ARK-ASR): a short Qwen3 decoder whose context is the target's hidden states,
+// proposing a block of tokens per round.
 #pragma once
 
 #include <atomic>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -21,9 +22,25 @@ enum class DraftPolicy { kAdaptive, kFixed };
 
 DraftPolicy ParseDraftPolicy(const std::string &value);
 
+// A DFlash draft as every server and CLI that takes one reads it, from
+// --draft-model-path DIR and --draft-bits 4|6|8.
+struct DraftOptions {
+  // Empty decodes without a draft.
+  std::filesystem::path directory;
+  // 0 keeps the weights as stored, otherwise the linear layers are quantized
+  // on load.
+  int quantization_bits = 0;
+
+  // Setters for the two flags, as ServedKind::flags takes them.
+  std::map<std::string, std::function<void(const std::string &)>> Flags();
+  // Throws std::invalid_argument for bits other than 4, 6 or 8, or for bits
+  // without a draft.
+  void Check() const;
+};
+
 struct LoadedDraft;
 
-// One draft decode's verification rounds, and the proposals the target
+// One draft decode's rounds of draft blocks, and the proposals the target
 // checked and accepted; the token the target adds each round is in neither.
 struct DraftStatistics {
   int verify_round_count = 0;
@@ -33,11 +50,9 @@ struct DraftStatistics {
 
 class DFlashDraft {
 public:
-  // Loads a Speculators DFlash checkpoint trained for a target of the given
-  // geometry, refusing one that does not fit it; quantization_bits 0 keeps the
-  // weights as stored, otherwise the linear layers are quantized on load.
-  DFlashDraft(const std::filesystem::path &directory, int quantization_bits,
-              const Qwen3DecoderConfig &target);
+  // Loads the Speculators DFlash checkpoint in options.directory, trained for
+  // a target of the given geometry, refusing one that does not fit it.
+  DFlashDraft(const DraftOptions &options, const Qwen3DecoderConfig &target);
 
   // Greedy decoding with the draft: each round the target verifies the block
   // the draft proposed, cut to the tokens max_new_tokens still allows, and
@@ -56,7 +71,12 @@ public:
   // values and the draft's context, over the same positions, which embeddings
   // and the committed tokens but the last extend. guessed_ids, tokens likely
   // to come next, are checked in the prompt's pass and kept while the target
-  // agrees. A backoff to plain decoding empties draft_caches.
+  // agrees; after the first mismatch their continuation, realigned on the
+  // committed tokens, is proposed in place of the draft's block. A backoff to
+  // plain decoding empties draft_caches.
+  // note (chenye): When set, reports guesses accepted in initial verification.
+  // verified_guess_count, when set, reports the guesses that verification
+  // checked.
   DraftStatistics Decode(const Qwen3Decoder &target,
                          const mlx::core::array &embeddings,
                          const std::vector<int> &guessed_ids,
@@ -64,7 +84,9 @@ public:
                          const std::function<bool(int)> &commit,
                          const std::atomic<bool> &cancel, DraftPolicy policy,
                          std::vector<omni_common::KVCache> &caches,
-                         std::vector<omni_common::KVCache> &draft_caches) const;
+                         std::vector<omni_common::KVCache> &draft_caches,
+                         int *accepted_guess_count = nullptr,
+                         int *verified_guess_count = nullptr) const;
   // Extends caches the caller keeps, the target's and the draft's over the
   // same positions, by embeddings [1, length, hidden] without decoding.
   void Prefill(const Qwen3Decoder &target, const mlx::core::array &embeddings,
@@ -97,6 +119,11 @@ private:
   // Tokens per block: the anchor and block_size - 1 proposals.
   int block_size_;
   int mask_token_id_;
+  // Note (XXXXRT666): the plain decoding speed the last probe measured, kept
+  // for the next requests so that each does not pay for a probe of its own
+  // (5 plain tokens, about 100 ms more on an M4 Air with the 1.7B); decodes
+  // run on one worker thread.
+  mutable double plain_seconds_per_token_ = 0.0;
 };
 
 } // namespace omni_common
