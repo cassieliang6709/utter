@@ -18,6 +18,7 @@ import (
 	"github.com/sgl-project/sglang-omni/Voxt/internal/helper/proto"
 	"github.com/sgl-project/sglang-omni/Voxt/internal/hotkey"
 	"github.com/sgl-project/sglang-omni/Voxt/internal/session"
+	"github.com/sgl-project/sglang-omni/Voxt/internal/settings"
 	"github.com/sgl-project/sglang-omni/Voxt/internal/store"
 )
 
@@ -259,13 +260,21 @@ func (a *app) returnFinishes() bool {
 	return a.sess.State == session.Recording && !a.sess.Note && a.prefs.Features.ReturnFinishes
 }
 
-// hotkeyPlan is what the settings' shortcuts become.
+// hotkeyPlan is what the settings' shortcuts become. A feature the user
+// hid has no shortcut. The utter build keeps Transcribe, Translate and
+// Rewrite but has no Notes page, so the note shortcut is off there: its
+// default, a tap of Right ⌘ (⌘ pressed and let go alone, as with ⌘-click),
+// started note recordings the user never asked for.
 func (a *app) hotkeyPlan() hotkey.Plan {
-	shown := slices.DeleteFunc(slices.Clone(liveFeatures), a.prefs.Features.IsHidden)
+	features := a.prefs.Features
+	shown := slices.DeleteFunc(slices.Clone(liveFeatures), features.IsHidden)
+	if utterFeatureHidden(features, settings.HideNotes) {
+		features.Note.Keys = ""
+	}
 	if a.returnFinishes() {
 		shown = append(shown, hotkey.FinishID)
 	}
-	return hotkey.Build(a.prefs.Features, shown)
+	return hotkey.Build(features, shown)
 }
 
 // syncHotkeys sends the shortcuts to the helper (and flips "active" while

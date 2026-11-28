@@ -96,3 +96,23 @@ func TestUtterProfileOnboarding(t *testing.T) {
 		t.Errorf("breadcrumbs %q", titles)
 	}
 }
+
+// TestUtterProfileHotkeysNoNote: the utter build has no Notes page, so a
+// tap of Right ⌘ (the note shortcut's default) must not reach the helper;
+// it started note recordings out of nowhere. Transcribe, Translate and
+// Rewrite keep their shortcuts.
+func TestUtterProfileHotkeysNoNote(t *testing.T) {
+	a := &app{prefs: settings.Defaults()}
+	var ids []string
+	for _, b := range a.hotkeyPlan().Bindings {
+		ids = append(ids, b.ID)
+	}
+	if slices.Contains(ids, "note") {
+		t.Errorf("note binding in the utter build: %v", ids)
+	}
+	for _, want := range []string{"transcribe/0", "translate/0", "rewrite/0"} {
+		if !slices.Contains(ids, want) {
+			t.Errorf("no %s binding: %v", want, ids)
+		}
+	}
+}
