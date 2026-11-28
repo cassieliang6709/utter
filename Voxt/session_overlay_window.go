@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/sgl-project/sglang-omni/Voxt/internal/core"
 	"github.com/sgl-project/sglang-omni/Voxt/internal/overlay/layout"
 	"github.com/sgl-project/sglang-omni/Voxt/internal/session"
 	"github.com/sgl-project/sglang-omni/Voxt/internal/store"
@@ -250,6 +252,9 @@ func (a *app) overlaySync() {
 	a.paceDraft()
 	a.refreshSessionOverlay(time.Now())
 	mode := a.overlayModeNow()
+	if mode != a.ov.mode {
+		a.overlayLog("overlay", a.ov.mode, mode)
+	}
 	defer a.pillOverlaySync(mode) // the session pill's own window (wall 116)
 	was := a.ov.shown
 	if mode == ovAnswer && a.ov.mode != ovAnswer && a.ov.cardDraggedSet {
@@ -564,4 +569,14 @@ func (a *app) overlayPhase() float64 {
 		return 0
 	}
 	return time.Since(a.ov.epoch).Seconds()
+}
+
+// overlayLog writes a change of the overlay's or the pill window's mode to
+// the app's log with the session it shows, so that a shortcut that seemed
+// to do nothing can be told from a pill that did not show, or showed late.
+func (a *app) overlayLog(window string, from, to overlayMode) {
+	if lg := a.logs; lg != nil {
+		lg.Append(core.LogEntry{Time: time.Now(), Level: core.Severity("debug"), Source: "overlay",
+			Message: fmt.Sprintf("%s %q → %q (session %s %s)", window, from, to, a.sess.ID, a.sess.State)})
+	}
 }

@@ -21,6 +21,9 @@ import (
 // defers to it with the overlay window's mode.
 func (a *app) pillOverlaySync(main overlayMode) {
 	mode := a.pillModeNow(main)
+	if mode != a.pill.mode {
+		a.overlayLog("pill", a.pill.mode, mode)
+	}
 	a.refreshPillOverlay(time.Now(), mode)
 	was := a.pill.shown
 	if mode == ovHidden {
